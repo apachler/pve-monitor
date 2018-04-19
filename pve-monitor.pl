@@ -27,6 +27,7 @@
 # Authors & contributors
 #   Damien PIQUET damien.piquet@iutbeziers.fr || piqudam@gmail.com
 #   Alexey Dvoryanchikov github.com/dvoryanchikov
+#   Andreas Pachler https://github.com/apachler
 #
 
 use strict;
@@ -36,9 +37,10 @@ use Net::Proxmox::VE;
 use IO::Socket::SSL;
 use Getopt::Long;
 use Switch;
+use Data::Dump qw(dump);
 
 my $configurationFile = './pve-monitor.conf';
-my $pluginVersion = '1.07';
+my $pluginVersion = '1.1';
 
 my %status = (
     'UNDEF'    => -1,
@@ -56,6 +58,7 @@ my %arguments = (
     'openvz'         => undef,
     'qemu'           => undef,
     'pools'          => undef,
+    'ignoretemp'     => undef,
     'qdisk'          => undef,
     'conf'           => undef,
     'show_help'      => undef,
@@ -66,7 +69,7 @@ my %arguments = (
 );
 
 sub usage {
-    print "Usage: $0 [--nodes] [--storages] [--qemu] [--openvz] [--pools] [--perfdata] [--html] --conf <file>\n";
+    print "Usage: $0 [--nodes] [--storages] [--qemu] [--openvz] [--pools <All|Pool>] [--perfdata] [--html] --conf <file>\n";
     print "\n";
     print "  --nodes\n";
     print "    Check the state of the cluster's members\n";
@@ -77,10 +80,13 @@ sub usage {
     print "  --openvz\n";
     print "    Check the state of the cluster's OpenVZ virtual machines\n";
     print "    [DEPRECATED] We keep it for pve-monitor < 1.07 back compat\n";
-	print "  --containers\n";
-	print "    Check the state of the cluster's containers (both openvz and lxc)\n";
+    print "  --containers\n";
+    print "    Check the state of the cluster's containers (both openvz and lxc)\n";
     print "  --pools\n";
     print "    Check the state of the cluster's virtual machines and/or storages in defined pools\n";
+    print "    Can be All or already defined Pool name\n";
+    print "  --ignoretemp\n";
+    print "    Ignore VMs defined as templates from pool list. Works only with --pools option\n";
     print "  --qdisk\n";
     print "    Check the state of the cluster's quorum disk\n";
     print "  --singlenode\n";
@@ -100,9 +106,10 @@ sub is_number {
 GetOptions ("nodes"       => \$arguments{nodes},
             "storages"    => \$arguments{storages},
             "openvz"      => \$arguments{openvz},
-            "containers"   => \$arguments{openvz},
+            "containers"  => \$arguments{openvz},
             "qemu"        => \$arguments{qemu},
-            "pools"       => \$arguments{pools},
+            "pools=s"     => \$arguments{pools},
+            "ignoretemp"  => \$arguments{ignoretemp},
             "qdisk"       => \$arguments{qdisk},
             "singlenode"  => \$arguments{singlenode},
             "perfdata"    => \$arguments{perfdata},
@@ -352,6 +359,7 @@ while ( <FILE> ) {
                      }
                  }
              }
+
              case "storage" {
                  my $name     = $2;
                  my $warnDisk = undef;
@@ -627,6 +635,7 @@ while ( <FILE> ) {
                  my $critMem  = undef;
                  my $critDisk = undef;
 
+   	         if ( $arguments{pools} eq $name || $arguments{pools} eq 'All' ) {
                  $readingObject = 1;
 
                  while (<FILE>) {
@@ -706,6 +715,7 @@ while ( <FILE> ) {
                      }
                  }
              }
+             }
              else {
                  close(FILE);
                  print "Invalid token $1 " .
@@ -751,7 +761,6 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
     next unless $pve->login;
     next unless $pve->check_login_ticket;
     next unless $pve->api_version_check;
-
 
     # Here we are connected, quit the loop
     print "Successfully connected to " . $host . " !\n"
@@ -862,7 +871,7 @@ if (defined $arguments{pools}) {
 	    foreach my $member( @$members ) {
 	        switch ($member->{type}) {
 	            case /openvz|lxc/ {
-                        unless (grep $_->{name} eq  $member->{name}, @monitoredOpenvz) {
+                        unless ( ( grep $_->{name} eq  $member->{name}, @monitoredOpenvz ) || ( $member->{template} eq 1 && defined $arguments{ignoretemp} ) ) {
                             $monitoredOpenvz[scalar(@monitoredOpenvz)] = (
                             {
                                 name         => $member->{name},
@@ -890,7 +899,7 @@ if (defined $arguments{pools}) {
 	                }
 	            }
 	            case "qemu" {
-	                unless (grep $_->{name} eq  $member->{name}, @monitoredQemus) {
+                        unless ( ( grep $_->{name} eq  $member->{name}, @monitoredQemus) || ( $member->{template} eq 1 && defined $arguments{ignoretemp} ) ) {
 		            $monitoredQemus[scalar(@monitoredQemus)] = (
 		            {
 			        name         => $member->{name},
@@ -1133,7 +1142,7 @@ if (defined $arguments{nodes}) {
 
     foreach my $mnode( @monitoredNodes ) {
         $statusScore += $mnode->{status};
-        
+
         if ($mnode->{status} ne $status{UNDEF}) {
             # compute max memory usage
             my $memAlloc = 0;
