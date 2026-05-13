@@ -1,0 +1,14 @@
+# Keep the GitHub Actions versions used by the workflows current.
+# There is no Perl/CPAN ecosystem support in Dependabot, so the runtime
+# CPAN dependencies (Net::Proxmox::VE, IO::Socket::SSL, JSON) aren't
+# tracked here — those are pinned only loosely by .github/workflows/test.yml
+# and validated by the Perl-version matrix.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
