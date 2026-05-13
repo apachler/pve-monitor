@@ -64,6 +64,7 @@ my %arguments = (
     'debug'          => undef,
     'singlenode'     => undef,
     'verify_ssl'     => undef,
+    'check'          => undef,
 );
 
 sub usage {
@@ -91,6 +92,9 @@ sub usage {
     print "    Consider there is no cluster, just a single node\n";
     print "  --verify-ssl\n";
     print "    Verify the PVE node's TLS certificate (default: disabled for self-signed certs)\n";
+    print "  --check <list>\n";
+    print "    Comma-separated list of checks (alias for the per-mode flags above).\n";
+    print "    Example: --check nodes,storages,qemu,containers\n";
     print "  --perfdata\n";
     print "    Print nagios performance data for graphs (PNP4Nagios supported check_multi style) \n";
     print "  --html\n";
@@ -143,6 +147,7 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "qdisk"       => \$arguments{qdisk},
             "singlenode"  => \$arguments{singlenode},
             "verify-ssl"  => \$arguments{verify_ssl},
+            "check=s"     => \$arguments{check},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -151,6 +156,23 @@ GetOptions ("nodes"       => \$arguments{nodes},
             'timeout|t=s' => \$arguments{timeout},
             'debug'       => \$arguments{debug},
 );
+
+if (defined $arguments{check}) {
+    # --check nodes,storages,qemu maps onto the existing per-flag arguments
+    my %check_alias = (
+        nodes      => 'nodes',
+        storages   => 'storages',
+        qemu       => 'qemu',
+        openvz     => 'openvz',
+        containers => 'openvz',
+        qdisk      => 'qdisk',
+    );
+    for my $c (split /\s*,\s*/, $arguments{check}) {
+        my $key = $check_alias{$c}
+            or do { print "Unknown --check value: $c\n"; exit $status{UNKNOWN}; };
+        $arguments{$key} = 1;
+    }
+}
 
 debug "Starting pve-monitor $pluginVersion\n";
 
