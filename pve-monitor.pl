@@ -35,6 +35,7 @@ use warnings;
 use Net::Proxmox::VE;
 use IO::Socket::SSL;
 use Getopt::Long;
+use JSON ();
 
 my $configurationFile = './pve-monitor.conf';
 my $pluginVersion = '1.1';
@@ -66,6 +67,7 @@ my %arguments = (
     'verify_ssl'     => undef,
     'check'          => undef,
     'dry_run'        => undef,
+    'json'           => undef,
 );
 
 sub usage {
@@ -98,6 +100,8 @@ sub usage {
     print "    Example: --check nodes,storages,qemu,containers\n";
     print "  --dry-run\n";
     print "    Parse the config and exit OK; useful for CI/syntax-check workflows\n";
+    print "  --json\n";
+    print "    Emit results as a JSON document on STDOUT instead of the Nagios summary\n";
     print "  --perfdata\n";
     print "    Print nagios performance data for graphs (PNP4Nagios supported check_multi style) \n";
     print "  --html\n";
@@ -152,6 +156,7 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "verify-ssl"  => \$arguments{verify_ssl},
             "check=s"     => \$arguments{check},
             "dry-run"     => \$arguments{dry_run},
+            "json"        => \$arguments{json},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -856,7 +861,18 @@ for my $a (@probeOrder) {
 }
 
 if (! $connected ) {
-    print "Could not connect to any server !";
+    if ($arguments{json}) {
+        print JSON->new->canonical->pretty->encode({
+            status    => $rstatus{$status{UNKNOWN}},
+            exit_code => 0 + $status{UNKNOWN},
+            plugin    => 'pve-monitor',
+            version   => $pluginVersion,
+            error     => 'Could not connect to any server',
+        });
+    }
+    else {
+        print "Could not connect to any server !";
+    }
     exit $status{UNKNOWN};
 }
 
@@ -1221,7 +1237,8 @@ if (defined $arguments{nodes}) {
     }
 
     print "NODES $rstatus{$statusScore}  $workingNodes / " .
-          scalar(@monitoredNodes) . " working nodes" . $br . $reportSummary;
+          scalar(@monitoredNodes) . " working nodes" . $br . $reportSummary
+        unless $arguments{json};
 
      $totalScore = max_status($totalScore, $statusScore);
 }; if (defined $arguments{storages}) {
@@ -1263,7 +1280,8 @@ if (defined $arguments{nodes}) {
     }
 
     print "STORAGE $rstatus{$statusScore} $workingStorages / " .
-          scalar(@monitoredStorages) . " working storages" . $br . $reportSummary;
+          scalar(@monitoredStorages) . " working storages" . $br . $reportSummary
+        unless $arguments{json};
     $totalPerfData .= "STORAGE::check_pve_storages::storages=$workingStorages;;;0;" . scalar(@monitoredStorages) . " " . $perfData;
 
      $totalScore = max_status($totalScore, $statusScore);
@@ -1325,7 +1343,8 @@ if (defined $arguments{nodes}) {
     }
 
     print "OPENVZ $rstatus{$statusScore} $workingVms / " .
-          scalar(@monitoredOpenvz) . " working VMs" . $br . $reportSummary;
+          scalar(@monitoredOpenvz) . " working VMs" . $br . $reportSummary
+        unless $arguments{json};
     $totalPerfData .= "OPENVZ::check_pve_vms::vmcount=$workingVms;;;0;" . scalar(@monitoredOpenvz) . " " . $perfData;
 
      $totalScore = max_status($totalScore, $statusScore);
@@ -1385,7 +1404,8 @@ if (defined $arguments{nodes}) {
 
     print "QEMU $rstatus{$statusScore} $workingVms / " .
           scalar(@monitoredQemus) . " working VMs" . $br .
-          $reportSummary;
+          $reportSummary
+        unless $arguments{json};
     $totalPerfData .= "QEMU::check_pve_vms::vmcount=$workingVms;;;0;" . scalar(@monitoredQemus) . " " . $perfData;
 
      $totalScore = max_status($totalScore, $statusScore);
@@ -1394,6 +1414,25 @@ if (defined $arguments{nodes}) {
     exit $status{UNKNOWN};
 }
 
-print $totalPerfData
-   if (defined $arguments{perfdata} and $totalPerfData ne "|");
+if ($arguments{json}) {
+    # Build a stable, structured payload reflecting the same data the
+    # Nagios-style printer would emit. Each section is only present if its
+    # corresponding --<mode> was requested.
+    my %payload = (
+        status      => $rstatus{$totalScore},
+        exit_code   => 0 + $totalScore,
+        plugin      => 'pve-monitor',
+        version     => $pluginVersion,
+    );
+    $payload{nodes}      = \@monitoredNodes    if defined $arguments{nodes};
+    $payload{storages}   = \@monitoredStorages if defined $arguments{storages};
+    $payload{containers} = \@monitoredOpenvz   if defined $arguments{openvz};
+    $payload{qemu}       = \@monitoredQemus    if defined $arguments{qemu};
+
+    print JSON->new->canonical->pretty->encode(\%payload);
+}
+else {
+    print $totalPerfData
+        if (defined $arguments{perfdata} and $totalPerfData ne "|");
+}
 exit $totalScore;
