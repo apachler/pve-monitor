@@ -1,0 +1,55 @@
+name: canary
+
+# Weekly run of the full suite against the latest stable Perl and the
+# latest CPAN release of Net::Proxmox::VE. The pinned matrix in
+# test.yml catches regressions in our code; this workflow catches
+# regressions caused by *upstream* — a Perl bump that drops a feature
+# we use, or a Net::Proxmox::VE bump that changes a method shape — at
+# the time they happen rather than when somebody pushes a v* tag and
+# the release workflow fails for surprising reasons.
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — early enough in the workweek that a failure
+    # has time to be triaged before the next push lands.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up latest stable Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          # "5" resolves to the latest stable Perl supported by the
+          # action — currently 5.40, will track future releases.
+          perl-version: "5"
+
+      - name: Install latest dependencies (no version pin)
+        run: |
+          cpanm --notest --quiet \
+            IO::Socket::SSL \
+            JSON \
+            Net::Proxmox::VE
+
+      - name: Print resolved versions
+        run: |
+          perl -v | head -2
+          perl -MNet::Proxmox::VE -e 'printf "Net::Proxmox::VE %s\n", $Net::Proxmox::VE::VERSION'
+          perl -MJSON -e 'printf "JSON %s\n", $JSON::VERSION'
+          perl -MIO::Socket::SSL -e 'printf "IO::Socket::SSL %s\n", $IO::Socket::SSL::VERSION'
+
+      - name: make test
+        run: make test
+
+      - name: --dry-run against example config
+        run: perl ./pve-monitor.pl --conf icinga2/pve-monitor.conf --dry-run
+
+      - name: prove t/
+        run: prove -r t/
