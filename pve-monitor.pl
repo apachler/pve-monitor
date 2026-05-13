@@ -1629,3 +1629,218 @@ else {
         if (defined $arguments{perfdata} and $totalPerfData ne "|");
 }
 exit $totalScore;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+pve-monitor.pl - Nagios/Icinga2 plugin for monitoring Proxmox VE clusters
+
+=head1 SYNOPSIS
+
+  pve-monitor.pl --conf FILE [--nodes] [--storages] [--qemu] [--containers]
+                 [--ceph] [--subscriptions] [--qdisk] [--pools NAME|All]
+                 [--check LIST] [--singlenode] [--verify-ssl]
+                 [--ignoretemp] [--perfdata] [--html] [--json]
+                 [--dry-run] [--timeout N] [--debug]
+
+  pve-monitor.pl --help
+  pve-monitor.pl --version
+
+=head1 DESCRIPTION
+
+C<pve-monitor.pl> is a single-file Perl Nagios plugin that monitors a
+Proxmox VE cluster via the PVE API. It does not install software on
+the monitored hosts; it authenticates to one cluster member and reads
+state from C</cluster/resources>, C</cluster/status>, and (depending
+on the requested checks) C</cluster/ceph/status> and
+C</nodes/E<lt>nE<gt>/subscription>.
+
+Exit codes follow the Nagios convention: C<0> OK, C<1> WARNING,
+C<2> CRITICAL, C<3> UNKNOWN. When multiple checks are requested in
+a single invocation, the overall exit code is the most severe of the
+individual checks (Nagios "max severity wins").
+
+=head1 OPTIONS
+
+=head2 What to check
+
+=over 4
+
+=item B<--nodes>
+
+Check the cluster's member nodes (CPU / memory / disk usage, plus
+over-allocation of CPU and memory by the VMs running on each node).
+
+=item B<--storages>
+
+Check disk usage per storage backend.
+
+=item B<--qemu>
+
+Check running state plus CPU / memory / disk usage of QEMU VMs.
+
+=item B<--containers>
+
+Check running state plus CPU / memory / disk usage of LXC (and
+legacy OpenVZ) containers. C<--openvz> is accepted as an alias.
+
+=item B<--ceph>
+
+Check the cluster's Ceph health. C<HEALTH_OK> maps to OK,
+C<HEALTH_WARN> to WARNING, C<HEALTH_ERR> to CRITICAL. Per-check
+detail (e.g. C<OSD_NEARFULL>, C<MON_DOWN>) is appended to the
+report summary.
+
+=item B<--subscriptions>
+
+Check the PVE subscription status of each node defined in the config.
+A non-active status is CRITICAL; an active subscription within
+C<--sub-crit-days> of expiry is CRITICAL; within C<--sub-warn-days>
+is WARNING.
+
+=item B<--qdisk>
+
+Check the cluster's quorum disk. Mutually exclusive with the
+other checks (exits immediately after reporting).
+
+=item B<--pools=NAME|All>
+
+Auto-expand the named pool's members (or every defined pool, with
+C<All>) into the corresponding C<--qemu> / C<--containers> /
+C<--storages> reports. Thresholds default to the values declared in
+the pool's config block.
+
+=item B<--check=LIST>
+
+Comma-separated alias for the per-mode flags above. Example:
+C<--check nodes,storages,qemu,containers>.
+
+=back
+
+=head2 Behavior
+
+=over 4
+
+=item B<--conf=FILE>
+
+Path to the plugin's config file. Required for any check.
+See L</CONFIGURATION>.
+
+=item B<--singlenode>
+
+Skip the cluster quorum probe. Treat the first reachable host
+as authoritative.
+
+=item B<--verify-ssl>
+
+Validate the PVE node's TLS certificate. Default is insecure
+(C<SSL_VERIFY_NONE>) because typical Proxmox installs use
+self-signed certificates.
+
+=item B<--ignoretemp>
+
+Skip VMs marked as templates when expanding pools.
+
+=item B<--timeout=N>
+
+HTTP timeout per node probe, in seconds. Default 5.
+
+=item B<--sub-warn-days=N> / B<--sub-crit-days=N>
+
+WARNING/CRITICAL thresholds in days for C<--subscriptions>.
+Defaults: 30 / 7.
+
+=back
+
+=head2 Output
+
+=over 4
+
+=item B<--perfdata>
+
+Emit Nagios perfdata after the human-readable summary
+(PNP4Nagios / check_multi style).
+
+=item B<--html>
+
+Replace newlines with C<E<lt>brE<gt>> in the summary, for monitoring
+systems that render HTML.
+
+=item B<--json>
+
+Emit a single JSON document on stdout instead of the Nagios-style
+summary. The connection-failure early-exit path also emits JSON.
+
+=item B<--dry-run>
+
+Parse the config and exit OK with a one-line count summary,
+without contacting any host.
+
+=item B<--debug>
+
+Verbose trace on STDERR (never mixed into the stdout summary).
+
+=item B<--version>, B<--help>
+
+Print the plugin version (exits OK) or the usage summary
+(exits UNKNOWN, per Nagios convention).
+
+=back
+
+=head1 CONFIGURATION
+
+The plugin config is a block-based format. See
+F<icinga2/pve-monitor.conf> for a working example.
+
+  node pve01 {
+      address              10.0.0.1
+      port                 8006             # optional, default 8006
+      monitor_account      icinga
+      monitor_token_id     icinga-monitor
+      monitor_token_secret 12345678-90ab-cdef-...
+      realm                pam              # optional, default 'pam'
+      mem                  80 90            # WARN  CRIT  percent
+      cpu                  80 95
+      disk                 80 90
+      mem_alloc            90 100
+      cpu_alloc            90 100
+  }
+  storage local { node pve01; disk 80 90 }
+  container web01 { mem 80 90; cpu 80 95; disk 80 90 }
+  qemu      db01  { mem 80 90; cpu 80 95; disk 80 90 }
+  pool      web   { mem 90 95; cpu 90 95; disk 90 95 }
+
+A node block must declare either C<monitor_password>, or both
+C<monitor_token_id> and C<monitor_token_secret>. Token authentication
+is recommended.
+
+=head1 EXIT CODES
+
+  0  OK         All requested checks passed.
+  1  WARNING    At least one check is in WARNING.
+  2  CRITICAL   At least one check is in CRITICAL.
+  3  UNKNOWN    The plugin could not determine status (e.g. no
+                 reachable cluster member, missing config file,
+                 parser error).
+
+=head1 SEE ALSO
+
+L<https://github.com/apachler/pve-monitor>,
+L<Net::Proxmox::VE>,
+L<https://pve.proxmox.com/pve-docs/api-viewer/>
+
+=head1 AUTHORS
+
+Damien Piquet <damien.piquet@iutbeziers.fr>,
+Alexey Dvoryanchikov,
+Andreas Pachler <https://github.com/apachler>.
+
+=head1 LICENSE
+
+GPL-3.0. See the F<LICENSE> file distributed with this script.
+
+=cut
+

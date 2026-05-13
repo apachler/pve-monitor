@@ -70,8 +70,16 @@ jobs:
           stage="$(mktemp -d)/${name}"
           mkdir -p "$stage"
           # Drop-in files for a sysadmin installing the plugin manually.
-          cp pve-monitor.pl README.md LICENSE Makefile "$stage/"
+          cp pve-monitor.pl README.md CHANGELOG.md LICENSE Makefile "$stage/"
           cp -r icinga2 "$stage/"
+          # Manpage: 'perldoc pve-monitor.pl' works on the script itself,
+          # but a real .1 lets distros install it under /usr/share/man.
+          pod2man \
+            --section=1 \
+            --name=pve-monitor \
+            --release="pve-monitor ${ver}" \
+            --center="Monitoring" \
+            pve-monitor.pl > "${stage}/pve-monitor.1"
           tar -czf "${name}.tar.gz" -C "$(dirname "$stage")" "$name"
           sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"
           ls -l "${name}.tar.gz" "${name}.tar.gz.sha256"

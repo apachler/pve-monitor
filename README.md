@@ -47,6 +47,8 @@ chmod +x /usr/lib/nagios/plugins/pve-monitor.pl
 
 Then edit `/etc/icinga2/pve-monitor.conf` to point at your cluster (see *Configuration* below). Example Icinga2 `CheckCommand` / host / service definitions live under `icinga2/conf.d/`.
 
+Release tarballs ship with a `pve-monitor.1` manpage generated from the script's embedded POD. Install it under `/usr/share/man/man1/` and `man pve-monitor` works. The same content is available without a release tarball via `perldoc pve-monitor.pl`.
+
 ## Usage
 
 ```sh
