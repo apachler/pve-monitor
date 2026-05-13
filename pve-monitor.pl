@@ -119,6 +119,20 @@ sub max_status {
     return $m;
 }
 
+# Compare $value against $obj->{warn_<metric>} / $obj->{crit_<metric>}
+# and write the result into $obj->{<metric>_status}.
+sub evaluate_threshold {
+    my ($obj, $metric, $value) = @_;
+    my $warn = $obj->{"warn_$metric"};
+    my $crit = $obj->{"crit_$metric"};
+    if (defined $warn && $value > $warn) {
+        $obj->{"${metric}_status"} = $status{WARNING};
+    }
+    if (defined $crit && $value > $crit) {
+        $obj->{"${metric}_status"} = $status{CRITICAL};
+    }
+}
+
 GetOptions ("nodes"       => \$arguments{nodes},
             "storages"    => \$arguments{storages},
             "openvz"      => \$arguments{openvz},
@@ -1131,55 +1145,11 @@ if (defined $arguments{nodes}) {
             $cpuAlloc = sprintf("%.2f", $mnode->{cpu_alloc} / $mnode->{maxcpu} * 100)
               if ($mnode->{maxcpu} > 0);
 
-            if (defined $mnode->{warn_mem_alloc}) {
-                $mnode->{mem_alloc_status} = $status{WARNING}
-                  if ($memAlloc > $mnode->{warn_mem_alloc});
-            }
-
-            if (defined $mnode->{crit_mem_alloc}) {
-                $mnode->{mem_alloc_status} = $status{CRITICAL}
-                  if ($memAlloc > $mnode->{crit_mem_alloc});
-            }
-
-            if (defined $mnode->{warn_cpu_alloc}) {
-                $mnode->{cpu_alloc_status} = $status{WARNING}
-                  if ($cpuAlloc > $mnode->{warn_cpu_alloc});
-            }
-
-            if (defined $mnode->{crit_cpu_alloc}) {
-                $mnode->{cpu_alloc_status} = $status{CRITICAL}
-                  if ($cpuAlloc > $mnode->{crit_cpu_alloc});
-            }
-
-            if (defined $mnode->{warn_mem}) {
-                $mnode->{mem_status} = $status{WARNING}
-                  if ($mnode->{curmem} > $mnode->{warn_mem});
-            }
-
-            if (defined $mnode->{crit_mem}) {
-                $mnode->{mem_status} = $status{CRITICAL}
-                  if ($mnode->{curmem} > $mnode->{crit_mem});
-            }
-
-            if (defined $mnode->{warn_disk}) {
-                $mnode->{disk_status} = $status{WARNING}
-                  if ($mnode->{curdisk} > $mnode->{warn_disk});
-            }
-
-            if (defined $mnode->{crit_disk}) {
-                $mnode->{disk_status} = $status{CRITICAL}
-                  if ($mnode->{curdisk} > $mnode->{crit_disk});
-            }
-
-            if (defined $mnode->{warn_cpu}) {
-                $mnode->{cpu_status} = $status{WARNING}
-                  if ($mnode->{curcpu} > $mnode->{warn_cpu});
-            }
-
-            if (defined $mnode->{crit_cpu}) {
-                $mnode->{cpu_status} = $status{CRITICAL}
-                  if ($mnode->{curcpu} > $mnode->{crit_cpu});
-            }
+            evaluate_threshold($mnode, 'mem_alloc', $memAlloc);
+            evaluate_threshold($mnode, 'cpu_alloc', $cpuAlloc);
+            evaluate_threshold($mnode, 'mem',       $mnode->{curmem});
+            evaluate_threshold($mnode, 'disk',      $mnode->{curdisk});
+            evaluate_threshold($mnode, 'cpu',       $mnode->{curcpu});
 
             my $curNodeStatus = max_status(
                 $mnode->{cpu_status},
@@ -1239,15 +1209,7 @@ if (defined $arguments{nodes}) {
                               "storage is on a dead node" . $br;
         }
         elsif ($mstorage->{status} ne $status{UNKNOWN}) {
-            if (defined $mstorage->{warn_disk}) {
-                $mstorage->{disk_status} = $status{WARNING}
-                  if $mstorage->{curdisk} > $mstorage->{warn_disk};
-            }
-
-            if (defined $mstorage->{crit_disk}) {
-                $mstorage->{disk_status} = $status{CRITICAL}
-                  if $mstorage->{curdisk} > $mstorage->{crit_disk};
-            }
+            evaluate_threshold($mstorage, 'disk', $mstorage->{curdisk});
 
             $reportSummary .= "$mstorage->{name} ($mstorage->{node}) " .
                               "$rstatus{$mstorage->{status}} : " .
@@ -1283,36 +1245,9 @@ if (defined $arguments{nodes}) {
 	#$mopenvz->{name} .= "/" . $mopenvz->{pool} if defined $mopenvz->{pool};
 
         if ($mopenvz->{status} ne $status{UNDEF}) {
-
-            if (defined $mopenvz->{warn_mem}) {
-                $mopenvz->{mem_status} = $status{WARNING}
-                  if ($mopenvz->{curmem} > $mopenvz->{warn_mem});
-            }
-
-            if (defined $mopenvz->{crit_mem}) {
-                $mopenvz->{mem_status} = $status{CRITICAL}
-                  if $mopenvz->{curmem} > $mopenvz->{crit_mem};
-            }
-
-            if (defined $mopenvz->{warn_disk}) {
-                $mopenvz->{disk_status} = $status{WARNING}
-                  if $mopenvz->{curdisk} > $mopenvz->{warn_disk};
-            }
-
-            if (defined $mopenvz->{crit_disk}) {
-                $mopenvz->{disk_status} = $status{CRITICAL}
-                  if $mopenvz->{curdisk} > $mopenvz->{crit_disk};
-            }
-
-            if (defined $mopenvz->{warn_cpu}) {
-                $mopenvz->{cpu_status} = $status{WARNING}
-                  if $mopenvz->{curcpu} > $mopenvz->{warn_cpu};
-            }
-
-            if (defined $mopenvz->{crit_cpu}) {
-                $mopenvz->{cpu_status} = $status{CRITICAL}
-                  if $mopenvz->{curcpu} > $mopenvz->{crit_cpu};
-            }
+            evaluate_threshold($mopenvz, 'mem',  $mopenvz->{curmem});
+            evaluate_threshold($mopenvz, 'disk', $mopenvz->{curdisk});
+            evaluate_threshold($mopenvz, 'cpu',  $mopenvz->{curcpu});
 
             if (defined $mopenvz->{alive}) {
                 if ($mopenvz->{alive} eq "running") {
@@ -1372,35 +1307,9 @@ if (defined $arguments{nodes}) {
 	#$mqemu->{name} .= "/" . $mqemu->{pool} if defined $mqemu->{pool};
 
         if ($mqemu->{status} ne $status{UNDEF}) {
-            if (defined $mqemu->{warn_mem}) {
-                $mqemu->{mem_status} = $status{WARNING}
-                  if $mqemu->{curmem} > $mqemu->{warn_mem};
-            }
-
-            if (defined $mqemu->{crit_mem}) {
-                $mqemu->{mem_status} = $status{CRITICAL}
-                  if $mqemu->{curmem} > $mqemu->{crit_mem};
-            }
-
-            if (defined $mqemu->{warn_disk}) {
-                $mqemu->{disk_status} = $status{WARNING}
-                  if $mqemu->{curdisk} > $mqemu->{warn_disk};
-            }
-
-            if (defined $mqemu->{crit_disk}) {
-                $mqemu->{disk_status} = $status{CRITICAL}
-                  if $mqemu->{curdisk} > $mqemu->{crit_disk};
-            }
-
-            if (defined $mqemu->{warn_cpu}) {
-                $mqemu->{cpu_status} = $status{WARNING}
-                  if $mqemu->{curcpu} > $mqemu->{warn_cpu};
-            }
-
-            if (defined $mqemu->{crit_cpu}) {
-                $mqemu->{cpu_status} = $status{CRITICAL}
-                  if $mqemu->{curcpu} > $mqemu->{crit_cpu};
-            }
+            evaluate_threshold($mqemu, 'mem',  $mqemu->{curmem});
+            evaluate_threshold($mqemu, 'disk', $mqemu->{curdisk});
+            evaluate_threshold($mqemu, 'cpu',  $mqemu->{curcpu});
 
             if (defined $mqemu->{alive}) {
                 if ($mqemu->{alive} eq "running") {
