@@ -259,6 +259,8 @@ while ( <FILE> ) {
                  my $nPort        = 8006;
                  my $nUser        = undef;
                  my $nPwd         = undef;
+                 my $nTokenId     = undef;
+                 my $nTokenSecret = undef;
                  my $nRealm       = 'pam';
                  my $warnMemAlloc = undef;
                  my $critMemAlloc = undef;
@@ -353,6 +355,12 @@ while ( <FILE> ) {
                          elsif ($token eq "monitor_password") {
                              $nPwd = $2;
                          }
+                         elsif ($token eq "monitor_token_id") {
+                             $nTokenId = $2;
+                         }
+                         elsif ($token eq "monitor_token_secret") {
+                             $nTokenSecret = $2;
+                         }
                          elsif ($token eq "realm") {
                              $nRealm = $2;
                          }
@@ -379,6 +387,8 @@ while ( <FILE> ) {
                                  username         => $nUser,
                                  realm            => $nRealm,
                                  password         => $nPwd,
+                                 token_id         => $nTokenId,
+                                 token_secret     => $nTokenSecret,
                                  warn_cpu         => $warnCpu,
                                  warn_cpu_alloc   => $warnCpuAlloc,
                                  warn_mem         => $warnMem,
@@ -793,24 +803,41 @@ for my $a (@probeOrder) {
     my $host     = $monitoredNodes[$a]->{address}  or next;
     my $port     = $monitoredNodes[$a]->{port}     or next;
     my $username = $monitoredNodes[$a]->{username} or next;
-    my $password = $monitoredNodes[$a]->{password} or next;
     my $realm    = $monitoredNodes[$a]->{realm}    or next;
+
+    my $password     = $monitoredNodes[$a]->{password};
+    my $tokenId      = $monitoredNodes[$a]->{token_id};
+    my $tokenSecret  = $monitoredNodes[$a]->{token_secret};
+
+    # Require either a password or a complete token pair.
+    unless ((defined $password) || (defined $tokenId && defined $tokenSecret)) {
+        debug "Skipping $host: no password and no token_id+token_secret configured\n";
+        next;
+    }
 
     my $isClusterMember = 0;
 
     debug "Trying " . $host . "...\n";
 
-    $pve = Net::Proxmox::VE->new(
+    my %pve_args = (
         host     => $host,
+        port     => $port,
         username => $username,
-        password => $password,
         debug    => $arguments{debug},
         realm    => $realm,
         timeout  => $arguments{timeout},
-		ssl_opts => $arguments{verify_ssl}
-			? { SSL_verify_mode => SSL_VERIFY_PEER, verify_hostname => 1 }
-			: { SSL_verify_mode => SSL_VERIFY_NONE, verify_hostname => 0 }
+        ssl_opts => $arguments{verify_ssl}
+            ? { SSL_verify_mode => SSL_VERIFY_PEER, verify_hostname => 1 }
+            : { SSL_verify_mode => SSL_VERIFY_NONE, verify_hostname => 0 },
     );
+    if (defined $tokenId && defined $tokenSecret) {
+        $pve_args{tokenid} = $tokenId;
+        $pve_args{secret}  = $tokenSecret;
+    }
+    else {
+        $pve_args{password} = $password;
+    }
+    $pve = Net::Proxmox::VE->new(%pve_args);
 
     next unless $pve->login;
     next unless $pve->check_login_ticket;
