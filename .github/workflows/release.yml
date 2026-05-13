@@ -70,7 +70,7 @@ jobs:
           stage="$(mktemp -d)/${name}"
           mkdir -p "$stage"
           # Drop-in files for a sysadmin installing the plugin manually.
-          cp pve-monitor.pl README.md gpl-3.0.txt Makefile "$stage/"
+          cp pve-monitor.pl README.md LICENSE Makefile "$stage/"
           cp -r icinga2 "$stage/"
           tar -czf "${name}.tar.gz" -C "$(dirname "$stage")" "$name"
           sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"

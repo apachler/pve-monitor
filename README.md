@@ -2,7 +2,7 @@
 
 [![test](https://github.com/apachler/pve-monitor/actions/workflows/test.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/test.yml)
 [![release](https://img.shields.io/github/v/release/apachler/pve-monitor?display_name=tag&sort=semver)](https://github.com/apachler/pve-monitor/releases/latest)
-[![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](gpl-3.0.txt)
+[![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![perl](https://img.shields.io/badge/perl-5.14%2B-blue.svg)](#requirements)
 
 A single-file Perl Nagios/Icinga2 plugin that monitors Proxmox VE clusters via the PVE API. No agent is installed on the cluster — the plugin authenticates to one node and reads cluster state from there.
@@ -167,7 +167,7 @@ Releases are cut by `.github/workflows/release.yml`, triggered when a `v<version
 
 1. Verifies the tag matches `$pluginVersion` inside `pve-monitor.pl` (refuses to publish if they disagree — the most common foot-gun on projects where the version lives in source).
 2. Re-runs the smoke tests from the test workflow.
-3. Builds `pve-monitor-<version>.tar.gz` with just the drop-in install set: `pve-monitor.pl`, `Makefile`, `README.md`, `gpl-3.0.txt`, and the `icinga2/` example layout.
+3. Builds `pve-monitor-<version>.tar.gz` with just the drop-in install set: `pve-monitor.pl`, `Makefile`, `README.md`, `LICENSE`, and the `icinga2/` example layout.
 4. Creates a GitHub Release with auto-generated changelog notes and attaches the tarball plus its `.sha256` sidecar.
 
 To cut a release:
@@ -182,7 +182,7 @@ The artifact for the most recent release is linked from the [release badge](http
 
 ## License
 
-GPL-3.0. See `gpl-3.0.txt`.
+GPL-3.0. See `LICENSE`.
 
 ## History / upstream
 
