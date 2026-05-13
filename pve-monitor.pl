@@ -1438,28 +1438,28 @@ if (defined $arguments{nodes}) {
                   if $mqemu->{curcpu} > $mqemu->{crit_cpu};
             }
 
-            if ($mqemu->{alive} eq "running") {
-                $mqemu->{status} = $status{OK};
-                $workingVms++;
+            if (defined $mqemu->{alive}) {
+                if ($mqemu->{alive} eq "running") {
+                    $mqemu->{status} = $status{OK};
+                    $workingVms++;
 
-                $reportSummary .=
-                    "$mqemu->{name} ($mqemu->{node}) $rstatus{$mqemu->{status}} : " .
-                    "cpu $rstatus{$mqemu->{cpu_status}} ($mqemu->{curcpu}%), " .
-                    "mem $rstatus{$mqemu->{mem_status}} ($mqemu->{curmem}%), " .
-                    "disk $rstatus{$mqemu->{disk_status}} ($mqemu->{curdisk}%) " .
-                    "uptime $mqemu->{uptime}" . $br;
-                $perfData .=
-                    "$mqemu->{name}::check_pve_qemu::" .
-                    "cpu=$mqemu->{curcpu}%;$mqemu->{warn_cpu};$mqemu->{crit_cpu} " .
-                    "mem=$mqemu->{curmem}%;$mqemu->{warn_mem};$mqemu->{crit_mem} ";
-            }
-            else {
-                $mqemu->{status} = $status{CRITICAL};
-
-                $reportSummary .= "$mqemu->{name} $rstatus{$mqemu->{status}} : " .
-                                  "VM is $mqemu->{alive}" . $br;
-                $statusScore += $status{CRITICAL};
-                $mqemu->{status} = $status{CRITICAL};
+                    $reportSummary .=
+                        "$mqemu->{name} ($mqemu->{node}) $rstatus{$mqemu->{status}} : " .
+                        "cpu $rstatus{$mqemu->{cpu_status}} ($mqemu->{curcpu}%), " .
+                        "mem $rstatus{$mqemu->{mem_status}} ($mqemu->{curmem}%), " .
+                        "disk $rstatus{$mqemu->{disk_status}} ($mqemu->{curdisk}%) " .
+                        "uptime $mqemu->{uptime}" . $br;
+                    $perfData .=
+                        "$mqemu->{name}::check_pve_qemu::" .
+                        "cpu=$mqemu->{curcpu}%;$mqemu->{warn_cpu};$mqemu->{crit_cpu} " .
+                        "mem=$mqemu->{curmem}%;$mqemu->{warn_mem};$mqemu->{crit_mem} ";
+                }
+                else {
+                    $mqemu->{status} = $status{CRITICAL};
+                    $reportSummary .= "$mqemu->{name} $rstatus{$mqemu->{status}} : " .
+                                      "VM is $mqemu->{alive}" . $br;
+                    $statusScore += $status{CRITICAL};
+                }
             }
 
             $statusScore += $mqemu->{cpu_status} + 
