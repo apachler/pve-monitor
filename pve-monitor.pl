@@ -103,6 +103,11 @@ sub is_number {
     ($_[0] =~ m/^[0-9]+$/) ? return 1 : return 0;
 }
 
+sub debug {
+    return unless $arguments{debug};
+    print STDERR @_;
+}
+
 GetOptions ("nodes"       => \$arguments{nodes},
             "storages"    => \$arguments{storages},
             "openvz"      => \$arguments{openvz},
@@ -121,11 +126,9 @@ GetOptions ("nodes"       => \$arguments{nodes},
             'debug'       => \$arguments{debug},
 );
 
-print "Starting pve-monitor $pluginVersion\n"
-	if $arguments{debug};
+debug "Starting pve-monitor $pluginVersion\n";
 
-print "Setting timeout to $arguments{timeout}\n"
-    if $arguments{debug};
+debug "Setting timeout to $arguments{timeout}\n";
 
 if (defined $arguments{show_version}) {
     print "$0 version $pluginVersion\n";
@@ -173,7 +176,7 @@ $br = "<br>" if (defined $arguments{html});
 
 # Read the configuration file
 if (! open FILE, "<", "$arguments{conf}") {
-    print "$!\n" if $arguments{debug};
+    debug "$!\n";
     print "Cannot load configuration file $arguments{conf} !\n";
     exit $status{UNKNOWN};
 }
@@ -312,8 +315,7 @@ while ( <FILE> ) {
                              exit $status{UNKNOWN};
                          }
 
-                         print "Loaded node $name\n"
-                           if $arguments{debug};
+                         debug "Loaded node $name\n";
 
                          $monitoredNodes[scalar(@monitoredNodes)] = ({
                                  name             => $name,
@@ -354,8 +356,7 @@ while ( <FILE> ) {
                          last;
                      }
                      else {
-                         print "Invalid line " . chomp($objLine) . " at line $. !\n"
-                           if $arguments{debug};
+                         debug "Invalid line " . chomp($objLine) . " at line $. !\n";
                      }
                  }
              }
@@ -412,8 +413,7 @@ while ( <FILE> ) {
                              exit $status{UNKNOWN};
                          }
 
-                         print "Loaded storage $name\n"
-                           if $arguments{debug};
+                         debug "Loaded storage $name\n";
 
                          $monitoredStorages[scalar(@monitoredStorages)] = ({
                                  name         => $name,
@@ -500,8 +500,7 @@ while ( <FILE> ) {
                              exit $status{UNKNOWN};
                          }
 
-                         print "Loaded openvz $name\n"
-                           if $arguments{debug};
+                         debug "Loaded openvz $name\n";
 
                          $monitoredOpenvz[scalar(@monitoredOpenvz)] = ({
                                  name         => $name,
@@ -597,8 +596,7 @@ while ( <FILE> ) {
                              exit $status{UNKNOWN};
                          }
 
-                         print "Loaded qemu $name\n"
-                           if $arguments{debug};
+                         debug "Loaded qemu $name\n";
 
                          $monitoredQemus[scalar(@monitoredQemus)] = (
                              {
@@ -695,8 +693,7 @@ while ( <FILE> ) {
                              exit $status{UNKNOWN};
                          }
 
-                         print "Loaded pool $name\n"
-                           if $arguments{debug};
+                         debug "Loaded pool $name\n";
 
                          $monitoredPools[scalar(@monitoredPools)] = (
                              {
@@ -740,8 +737,7 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
 
     my $isClusterMember = 0;
 
-    print "Trying " . $host . "...\n"
-      if $arguments{debug};
+    debug "Trying " . $host . "...\n";
 
     $pve = Net::Proxmox::VE->new(
         host     => $host,
@@ -761,13 +757,11 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
     next unless $pve->api_version_check;
 
     # Here we are connected, quit the loop
-    print "Successfully connected to " . $host . " !\n"
-      if $arguments{debug};
+    debug "Successfully connected to " . $host . " !\n";
 
     # skip cluster status checks if we are not in cluster
     if (defined $arguments{singlenode}) {
-        print "Skipping cluster checks (--singlenode passed to command line)\n"
-          if $arguments{debug};
+        debug "Skipping cluster checks (--singlenode passed to command line)\n";
 
         $connected = 1;
         last;
@@ -782,8 +776,7 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
             case "node" {
                 # qdisks are also type "node"
                 if ($item->{qdisk} eq "1") {
-                    print "Found qdisk $item->{name} in cluster\n"
-                      if $arguments{debug};
+                    debug "Found qdisk $item->{name} in cluster\n";
 
                     $qdisk{id}        = $item->{id};
                     $qdisk{name}      = $item->{name};
@@ -793,12 +786,10 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
                 elsif ($item->{local} eq "1") {
                     if ($item->{estranged} eq "0" || $item->{estranged} eq "") {
                          $isClusterMember = 1;
-                         print "Node $item->{ip} is in cluster and seems sane. Using it to query cluster status\n"
-                           if $arguments{debug};
+                         debug "Node $item->{ip} is in cluster and seems sane. Using it to query cluster status\n";
                     }
                     else {
-                        print "Node $item->{ip} is estranged ! Skipping it !\n"
-                          if $arguments{debug};
+                        debug "Node $item->{ip} is estranged ! Skipping it !\n";
                     }
                 }
             }
@@ -847,8 +838,7 @@ if (defined $arguments{qdisk}) {
 # list all ressources of the cluster
 my $objects = $pve->get('/cluster/resources');
 
-print "Found " . scalar(@$objects) . " objects:\n"
-  if $arguments{debug};
+debug "Found " . scalar(@$objects) . " objects:\n";
 
 # loop the objects to find our pool definitions
 if (defined $arguments{pools}) {
@@ -858,8 +848,7 @@ if (defined $arguments{pools}) {
         foreach my $mpool( @monitoredPools ) {
             next unless ($item->{pool} eq $mpool->{name});
 
-            print "Found $mpool->{name} in resource list\n"
-              if $arguments{debug};
+            debug "Found $mpool->{name} in resource list\n";
 
 	    #get pool members
 	    my $pool =  $pve->get('/pools/' . $mpool->{name});
@@ -892,8 +881,7 @@ if (defined $arguments{pools}) {
 		                pool         => $mpool->{name},
                             },);
 
-	                    print "Loaded container " . $member->{name} . " from pool " . $mpool->{name} . "\n"
-                              if $arguments{debug};
+	                    debug "Loaded container " . $member->{name} . " from pool " . $mpool->{name} . "\n";
 	                }
 	            }
 	            case "qemu" {
@@ -920,8 +908,7 @@ if (defined $arguments{pools}) {
 			        pool         => $mpool->{name},
 		             },);
 		 
-                             print "Loaded qemu " . $member->{name} . " from pool " . $mpool->{name} . "\n"
-		               if $arguments{debug};
+                             debug "Loaded qemu " . $member->{name} . " from pool " . $mpool->{name} . "\n";
 		        }
 	            }
 	            case "storage" {
@@ -937,8 +924,7 @@ if (defined $arguments{pools}) {
 			         pool         => $mpool->{name},
 		             },);
 
-		             print "Loaded storage " . $member->{storage} . " from pool " . $mpool->{name} . "\n"
-		               if $arguments{debug};
+		             debug "Loaded storage " . $member->{storage} . " from pool " . $mpool->{name} . "\n";
 		         }
 	            }
                 }
@@ -955,8 +941,7 @@ foreach my $item( @$objects ) {
             foreach my $mnode( @monitoredNodes ) {
                 next unless ($item->{node} eq $mnode->{name});
 
-                print "Found $mnode->{name} in resource list\n"
-                  if $arguments{debug};
+                debug "Found $mnode->{name} in resource list\n";
 
                 # if a node is down, many values are not set
                 if(defined $item->{uptime}) {
@@ -996,8 +981,7 @@ foreach my $item( @$objects ) {
                 next unless ($item->{storage} eq $mstorage->{name});
                 next unless ($item->{node} eq $mstorage->{node});
 
-                print "Found $mstorage->{name} in resource list\n"
-                  if $arguments{debug};
+                debug "Found $mstorage->{name} in resource list\n";
 
                 if (defined $item->{disk} ) {
                     $mstorage->{status} = $status{OK};
@@ -1035,8 +1019,7 @@ foreach my $item( @$objects ) {
             foreach my $mopenvz( @monitoredOpenvz ) {
                 next unless ($item->{name} eq $mopenvz->{name});
 
-                print "Found $mopenvz->{name} in resource list\n"
-                  if $arguments{debug};
+                debug "Found $mopenvz->{name} in resource list\n";
 
                 if (defined $item->{status}) {
                     $mopenvz->{status}  = $status{OK};
@@ -1089,8 +1072,7 @@ foreach my $item( @$objects ) {
             foreach my $mqemu( @monitoredQemus ) {
                 next unless ($item->{name} eq $mqemu->{name});
 
-                print "Found $mqemu->{name} in resource list\n"
-                  if $arguments{debug};
+                debug "Found $mqemu->{name} in resource list\n";
 
                 if(defined $item->{status}) {
                     $mqemu->{status}  = $status{OK};
