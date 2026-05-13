@@ -1,0 +1,31 @@
+{
+  "/cluster/status": [
+    { "type": "node", "name": "node1", "id": "node/node1", "ip": "127.0.0.1",
+      "local": "1", "qdisk": "0", "estranged": "0", "state": "1" }
+  ],
+  "/cluster/resources": [
+    {
+      "type": "node",
+      "node": "node1",
+      "id": "node/node1"
+    },
+    {
+      "type": "storage",
+      "node": "node1",
+      "storage": "local-lvm",
+      "id": "storage/node1/local-lvm"
+    },
+    {
+      "type": "lxc",
+      "node": "node1",
+      "name": "ct100",
+      "id": "lxc/100"
+    },
+    {
+      "type": "qemu",
+      "node": "node1",
+      "name": "vm200",
+      "id": "qemu/200"
+    }
+  ]
+}

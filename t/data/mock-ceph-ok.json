@@ -1,0 +1,16 @@
+{
+  "/cluster/status": [
+    { "type": "node", "name": "node1", "id": "node/node1", "ip": "127.0.0.1",
+      "local": "1", "qdisk": "0", "estranged": "0", "state": "1" }
+  ],
+  "/cluster/resources": [
+    { "type": "node", "node": "node1", "status": "online", "uptime": 100,
+      "mem": 1, "maxmem": 100, "cpu": 0.1, "maxcpu": 2, "disk": 1, "maxdisk": 100 }
+  ],
+  "/cluster/ceph/status": {
+    "health": {
+      "status": "HEALTH_OK",
+      "checks": {}
+    }
+  }
+}
