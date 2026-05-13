@@ -68,6 +68,7 @@ my %arguments = (
     'check'          => undef,
     'dry_run'        => undef,
     'json'           => undef,
+    'ceph'           => undef,
 );
 
 sub usage {
@@ -91,6 +92,8 @@ sub usage {
     print "    Ignore VMs defined as templates from pool list. Works only with --pools option\n";
     print "  --qdisk\n";
     print "    Check the state of the cluster's quorum disk\n";
+    print "  --ceph\n";
+    print "    Check the state of the cluster's Ceph deployment (HEALTH_OK/WARN/ERR)\n";
     print "  --singlenode\n";
     print "    Consider there is no cluster, just a single node\n";
     print "  --verify-ssl\n";
@@ -157,6 +160,7 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "check=s"     => \$arguments{check},
             "dry-run"     => \$arguments{dry_run},
             "json"        => \$arguments{json},
+            "ceph"        => \$arguments{ceph},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -175,6 +179,7 @@ if (defined $arguments{check}) {
         openvz     => 'openvz',
         containers => 'openvz',
         qdisk      => 'qdisk',
+        ceph       => 'ceph',
     );
     for my $c (split /\s*,\s*/, $arguments{check}) {
         my $key = $check_alias{$c}
@@ -1436,7 +1441,65 @@ if (defined $arguments{nodes}) {
     $totalPerfData .= "QEMU::check_pve_vms::vmcount=$workingVms;;;0;" . scalar(@monitoredQemus) . " " . $perfData;
 
      $totalScore = max_status($totalScore, $statusScore);
-}; if (not defined $arguments{qemu} and not defined $arguments{openvz} and not defined $arguments{storages} and not defined $arguments{nodes}) {
+}
+
+my %cephReport;
+if (defined $arguments{ceph}) {
+    my $statusScore = $status{OK};
+    my $reportSummary = '';
+    my $cephStatus;
+
+    # /cluster/ceph/status returns a hash whose 'health' sub-hash carries
+    # 'status' = HEALTH_OK | HEALTH_WARN | HEALTH_ERR (plus 'checks' detail).
+    eval { $cephStatus = $pve->get('/cluster/ceph/status'); 1 }
+      or do { debug "ceph: API call failed: $@\n" };
+
+    if (!defined $cephStatus || ref($cephStatus) ne 'HASH') {
+        $statusScore = $status{UNKNOWN};
+        $reportSummary = "Ceph status unavailable (cluster has no Ceph or API call failed)";
+    }
+    else {
+        my $health = (ref($cephStatus->{health}) eq 'HASH')
+            ? $cephStatus->{health}->{status}
+            : undef;
+        $health = '' unless defined $health;
+
+        if ($health eq 'HEALTH_OK') {
+            $statusScore = $status{OK};
+            $reportSummary = "Ceph HEALTH_OK";
+        }
+        elsif ($health eq 'HEALTH_WARN') {
+            $statusScore = $status{WARNING};
+            $reportSummary = "Ceph HEALTH_WARN";
+        }
+        elsif ($health eq 'HEALTH_ERR') {
+            $statusScore = $status{CRITICAL};
+            $reportSummary = "Ceph HEALTH_ERR";
+        }
+        else {
+            $statusScore = $status{UNKNOWN};
+            $reportSummary = "Ceph health unknown ('$health')";
+        }
+
+        # Append per-check details (PVE 6+ reports checks as a hash keyed by check id).
+        if (ref($cephStatus->{health}->{checks}) eq 'HASH') {
+            for my $check_id (sort keys %{$cephStatus->{health}->{checks}}) {
+                my $c = $cephStatus->{health}->{checks}->{$check_id};
+                my $summary = (ref($c->{summary}) eq 'HASH' && defined $c->{summary}->{message})
+                    ? $c->{summary}->{message}
+                    : '';
+                $reportSummary .= $br . "  [$check_id] $summary";
+            }
+        }
+    }
+
+    %cephReport = (status => $rstatus{$statusScore}, detail => $reportSummary);
+    print "CEPH $rstatus{$statusScore} : $reportSummary" . $br
+        unless $arguments{json};
+    $totalScore = max_status($totalScore, $statusScore);
+}
+
+if (not defined $arguments{qemu} and not defined $arguments{openvz} and not defined $arguments{storages} and not defined $arguments{nodes} and not defined $arguments{ceph}) {
     usage();
     exit $status{UNKNOWN};
 }
@@ -1455,6 +1518,7 @@ if ($arguments{json}) {
     $payload{storages}   = \@monitoredStorages if defined $arguments{storages};
     $payload{containers} = \@monitoredOpenvz   if defined $arguments{openvz};
     $payload{qemu}       = \@monitoredQemus    if defined $arguments{qemu};
+    $payload{ceph}       = \%cephReport        if defined $arguments{ceph};
 
     print JSON->new->canonical->pretty->encode(\%payload);
 }
