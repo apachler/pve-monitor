@@ -1,0 +1,90 @@
+name: release
+
+# Cut a release by pushing an annotated v<version> tag whose number
+# matches $pluginVersion inside pve-monitor.pl, e.g.:
+#
+#   git tag -a v1.2 -m 'pve-monitor 1.2'
+#   git push origin v1.2
+#
+# The workflow refuses to publish if the tag and the in-script version
+# disagree, so an unintentional release (e.g. forgetting to bump
+# $pluginVersion) is caught at CI time, not after the fact.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so --generate-notes can produce a sensible changelog.
+          fetch-depth: 0
+
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.38"
+
+      - name: Install CPAN dependencies
+        run: |
+          cpanm --notest --quiet \
+            IO::Socket::SSL \
+            JSON \
+            Net::Proxmox::VE
+
+      - name: Verify tag matches $pluginVersion
+        run: |
+          tag_ver="${GITHUB_REF_NAME#v}"
+          script_ver=$(perl -ne "print \$1 if /pluginVersion\s*=\s*'([^']+)'/" pve-monitor.pl)
+          echo "Tag version:    $tag_ver"
+          echo "Script version: $script_ver"
+          if [ -z "$script_ver" ]; then
+            echo "Failed to extract \$pluginVersion from pve-monitor.pl" >&2
+            exit 1
+          fi
+          if [ "$tag_ver" != "$script_ver" ]; then
+            echo "Refusing to release: tag '$tag_ver' does not match \$pluginVersion '$script_ver'" >&2
+            echo "Bump \$pluginVersion in pve-monitor.pl, retag, and push again." >&2
+            exit 1
+          fi
+
+      - name: Smoke test
+        run: |
+          make test
+          perl ./pve-monitor.pl --help >/dev/null || [ "$?" = "3" ]
+          perl ./pve-monitor.pl --conf icinga2/pve-monitor.conf --dry-run
+
+      - name: Build release tarball
+        id: build
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          name="pve-monitor-${ver}"
+          stage="$(mktemp -d)/${name}"
+          mkdir -p "$stage"
+          # Drop-in files for a sysadmin installing the plugin manually.
+          cp pve-monitor.pl README.md gpl-3.0.txt Makefile "$stage/"
+          cp -r icinga2 "$stage/"
+          tar -czf "${name}.tar.gz" -C "$(dirname "$stage")" "$name"
+          sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"
+          ls -l "${name}.tar.gz" "${name}.tar.gz.sha256"
+          echo "tarball=${name}.tar.gz" >>"$GITHUB_OUTPUT"
+          echo "sha256=${name}.tar.gz.sha256" >>"$GITHUB_OUTPUT"
+          echo "version=${ver}" >>"$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "pve-monitor ${{ steps.build.outputs.version }}" \
+            --generate-notes \
+            "${{ steps.build.outputs.tarball }}" \
+            "${{ steps.build.outputs.sha256 }}"
