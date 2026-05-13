@@ -154,7 +154,7 @@ The script itself is expected to live in Icinga2's `PluginDir`. Adjust paths to 
 
 ## CI
 
-`make test` runs the same syntax-and-`--version` smoke check that `.travis.yml` ran historically. There is no full test suite — the script needs a real PVE cluster to validate behavior end-to-end. `--dry-run` is the fastest way to check the plugin config file is well-formed.
+`make test` runs the syntax-and-`--version` smoke check. The full CI lives in `.github/workflows/test.yml` and additionally exercises `--help` and `--dry-run` against the example Icinga2 config across a Perl 5.14 / 5.20 / 5.38 matrix. There is no full test suite — the script needs a real PVE cluster to validate behavior end-to-end. `--dry-run` is the fastest way to confirm a plugin config file is well-formed.
 
 ## License
 

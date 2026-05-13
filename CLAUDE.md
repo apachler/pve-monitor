@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Structured output: `--json` (emits a single JSON document instead of the Nagios-style summary)
 - Show usage: `perl ./pve-monitor.pl --help`
 
-There is no test suite, linter config, or package manager in this repo. CI (`.travis.yml`) only validates that the script parses and runs `--version` under Perl 5.14–5.20 after installing CPAN deps.
+There is no test suite or linter config in this repo. CI lives in `.github/workflows/test.yml`: it runs `make test`, `--help`, and `--dry-run icinga2/pve-monitor.conf` across Perl 5.14, 5.20, and 5.38 on every push and PR. `release.yml` is triggered by `v*` tags and gates artifact builds on the same smoke tests plus a check that the tag matches `$pluginVersion` in the script.
 
 ## Runtime Dependencies
 
