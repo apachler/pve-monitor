@@ -635,7 +635,6 @@ while ( <FILE> ) {
                  my $critMem  = undef;
                  my $critDisk = undef;
 
-   	         if ( $arguments{pools} eq $name || $arguments{pools} eq 'All' ) {
                  $readingObject = 1;
 
                  while (<FILE>) {
@@ -714,7 +713,6 @@ while ( <FILE> ) {
                          last;
                      }
                  }
-             }
              }
              else {
                  close(FILE);
