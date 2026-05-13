@@ -731,7 +731,10 @@ if ( $readingObject ) {
     exit $status{UNKNOWN};
 }
 
-for($a = 0; $a < scalar(@monitoredNodes); $a++) {
+# Probe nodes in randomized order so a dead node at the head of the config
+# doesn't make every check pay its connect-timeout cost.
+my @probeOrder = sort { rand() <=> rand() } 0 .. $#monitoredNodes;
+for my $a (@probeOrder) {
     my $host     = $monitoredNodes[$a]->{address}  or next;
     my $port     = $monitoredNodes[$a]->{port}     or next;
     my $username = $monitoredNodes[$a]->{username} or next;
