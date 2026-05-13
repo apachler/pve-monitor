@@ -69,6 +69,9 @@ my %arguments = (
     'dry_run'        => undef,
     'json'           => undef,
     'ceph'           => undef,
+    'subscriptions'  => undef,
+    'sub_warn_days'  => 30,
+    'sub_crit_days'  => 7,
 );
 
 sub usage {
@@ -94,6 +97,11 @@ sub usage {
     print "    Check the state of the cluster's quorum disk\n";
     print "  --ceph\n";
     print "    Check the state of the cluster's Ceph deployment (HEALTH_OK/WARN/ERR)\n";
+    print "  --subscriptions\n";
+    print "    Check each node's PVE subscription validity and days-until-expiry\n";
+    print "  --sub-warn-days N (default 30)\n";
+    print "  --sub-crit-days N (default 7)\n";
+    print "    WARNING/CRITICAL thresholds in days for --subscriptions\n";
     print "  --singlenode\n";
     print "    Consider there is no cluster, just a single node\n";
     print "  --verify-ssl\n";
@@ -161,6 +169,9 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "dry-run"     => \$arguments{dry_run},
             "json"        => \$arguments{json},
             "ceph"        => \$arguments{ceph},
+            "subscriptions" => \$arguments{subscriptions},
+            "sub-warn-days=i" => \$arguments{sub_warn_days},
+            "sub-crit-days=i" => \$arguments{sub_crit_days},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -178,8 +189,9 @@ if (defined $arguments{check}) {
         qemu       => 'qemu',
         openvz     => 'openvz',
         containers => 'openvz',
-        qdisk      => 'qdisk',
-        ceph       => 'ceph',
+        qdisk          => 'qdisk',
+        ceph           => 'ceph',
+        subscriptions  => 'subscriptions',
     );
     for my $c (split /\s*,\s*/, $arguments{check}) {
         my $key = $check_alias{$c}
@@ -1499,7 +1511,85 @@ if (defined $arguments{ceph}) {
     $totalScore = max_status($totalScore, $statusScore);
 }
 
-if (not defined $arguments{qemu} and not defined $arguments{openvz} and not defined $arguments{storages} and not defined $arguments{nodes} and not defined $arguments{ceph}) {
+my @subscriptionReport;
+if (defined $arguments{subscriptions}) {
+    my $statusScore = $status{OK};
+    my $reportSummary = '';
+
+    for my $mnode (@monitoredNodes) {
+        my $nname = $mnode->{name};
+        my $sub;
+        eval { $sub = $pve->get("/nodes/$nname/subscription"); 1 }
+          or do { debug "subscription[$nname]: $@\n" };
+
+        if (!defined $sub || ref($sub) ne 'HASH') {
+            $statusScore = max_status($statusScore, $status{UNKNOWN});
+            $reportSummary .= "$nname: subscription unavailable" . $br;
+            push @subscriptionReport,
+                { node => $nname, status => $rstatus{$status{UNKNOWN}} };
+            next;
+        }
+
+        my $sub_status = $sub->{status} // '';   # 'active' | 'notfound' | 'expired' | ...
+        my $due        = $sub->{nextduedate};    # YYYY-MM-DD when present
+        my $days_left;
+
+        if (defined $due && $due =~ /^(\d{4})-(\d{2})-(\d{2})/) {
+            # Plain integer day arithmetic — avoids dragging in Time::Piece for 5.14 compat.
+            my ($y, $m, $d) = ($1, $2, $3);
+            my @months = (31,28,31,30,31,30,31,31,30,31,30,31);
+            my $leap = ($y % 4 == 0 && ($y % 100 != 0 || $y % 400 == 0)) ? 1 : 0;
+            $months[1] += $leap;
+            my $due_days = $y * 365 + int($y/4) - int($y/100) + int($y/400);
+            if ($m > 1) { $due_days += $_ for @months[0 .. $m - 2] }
+            $due_days += $d;
+
+            my (undef, undef, undef, $cd, $cm, $cy) = localtime();
+            $cm += 1; $cy += 1900;
+            my @cm_arr = (31,28,31,30,31,30,31,31,30,31,30,31);
+            $cm_arr[1] += (($cy % 4 == 0 && ($cy % 100 != 0 || $cy % 400 == 0)) ? 1 : 0);
+            my $cur_days = $cy * 365 + int($cy/4) - int($cy/100) + int($cy/400);
+            if ($cm > 1) { $cur_days += $_ for @cm_arr[0 .. $cm - 2] }
+            $cur_days += $cd;
+
+            $days_left = $due_days - $cur_days;
+        }
+
+        my $node_score;
+        if ($sub_status ne 'active') {
+            $node_score = $status{CRITICAL};
+            $reportSummary .= "$nname: subscription is '$sub_status'" . $br;
+        }
+        elsif (defined $days_left && $days_left <= $arguments{sub_crit_days}) {
+            $node_score = $status{CRITICAL};
+            $reportSummary .= "$nname: $days_left days until expiry" . $br;
+        }
+        elsif (defined $days_left && $days_left <= $arguments{sub_warn_days}) {
+            $node_score = $status{WARNING};
+            $reportSummary .= "$nname: $days_left days until expiry" . $br;
+        }
+        else {
+            $node_score = $status{OK};
+            my $detail = defined $days_left ? "$days_left days until expiry" : 'active';
+            $reportSummary .= "$nname: $detail" . $br;
+        }
+
+        $statusScore = max_status($statusScore, $node_score);
+        push @subscriptionReport, {
+            node       => $nname,
+            sub_status => $sub_status,
+            nextduedate => $due,
+            days_left  => $days_left,
+            status     => $rstatus{$node_score},
+        };
+    }
+
+    print "SUBSCRIPTIONS $rstatus{$statusScore}" . $br . $reportSummary
+        unless $arguments{json};
+    $totalScore = max_status($totalScore, $statusScore);
+}
+
+if (not defined $arguments{qemu} and not defined $arguments{openvz} and not defined $arguments{storages} and not defined $arguments{nodes} and not defined $arguments{ceph} and not defined $arguments{subscriptions}) {
     usage();
     exit $status{UNKNOWN};
 }
@@ -1519,6 +1609,7 @@ if ($arguments{json}) {
     $payload{containers} = \@monitoredOpenvz   if defined $arguments{openvz};
     $payload{qemu}       = \@monitoredQemus    if defined $arguments{qemu};
     $payload{ceph}       = \%cephReport        if defined $arguments{ceph};
+    $payload{subscriptions} = \@subscriptionReport if defined $arguments{subscriptions};
 
     print JSON->new->canonical->pretty->encode(\%payload);
 }
