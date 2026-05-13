@@ -1,5 +1,10 @@
 # pve-monitor
 
+[![test](https://github.com/apachler/pve-monitor/actions/workflows/test.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/apachler/pve-monitor?display_name=tag&sort=semver)](https://github.com/apachler/pve-monitor/releases/latest)
+[![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](gpl-3.0.txt)
+[![perl](https://img.shields.io/badge/perl-5.14%2B-blue.svg)](#requirements)
+
 A single-file Perl Nagios/Icinga2 plugin that monitors Proxmox VE clusters via the PVE API. No agent is installed on the cluster — the plugin authenticates to one node and reads cluster state from there.
 
 It can check, in any combination:
@@ -155,6 +160,25 @@ The script itself is expected to live in Icinga2's `PluginDir`. Adjust paths to 
 ## CI
 
 `make test` runs the syntax-and-`--version` smoke check. The full CI lives in `.github/workflows/test.yml` and additionally exercises `--help` and `--dry-run` against the example Icinga2 config across a Perl 5.14 / 5.20 / 5.38 matrix. There is no full test suite — the script needs a real PVE cluster to validate behavior end-to-end. `--dry-run` is the fastest way to confirm a plugin config file is well-formed.
+
+## Releases
+
+Releases are cut by `.github/workflows/release.yml`, triggered when a `v<version>` tag is pushed. The workflow:
+
+1. Verifies the tag matches `$pluginVersion` inside `pve-monitor.pl` (refuses to publish if they disagree — the most common foot-gun on projects where the version lives in source).
+2. Re-runs the smoke tests from the test workflow.
+3. Builds `pve-monitor-<version>.tar.gz` with just the drop-in install set: `pve-monitor.pl`, `Makefile`, `README.md`, `gpl-3.0.txt`, and the `icinga2/` example layout.
+4. Creates a GitHub Release with auto-generated changelog notes and attaches the tarball plus its `.sha256` sidecar.
+
+To cut a release:
+
+```sh
+# bump $pluginVersion in pve-monitor.pl first
+git tag -a v1.2 -m 'pve-monitor 1.2'
+git push origin v1.2
+```
+
+The artifact for the most recent release is linked from the [release badge](https://github.com/apachler/pve-monitor/releases/latest) at the top of this README.
 
 ## License
 
