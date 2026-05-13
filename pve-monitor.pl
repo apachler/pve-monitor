@@ -1199,7 +1199,7 @@ if (defined $arguments{nodes}) {
             }
 
             if (defined $mnode->{crit_cpu}) {
-                $mnode->{crit_cpu} = $status{CRITICAL}
+                $mnode->{cpu_status} = $status{CRITICAL}
                   if ($mnode->{curcpu} > $mnode->{crit_cpu});
             }
 
