@@ -1,10 +1,165 @@
-[![Build Status](https://travis-ci.org/dpiquet/pve-monitor.svg?branch=master)](https://travis-ci.org/dpiquet/pve-monitor)
+# pve-monitor
 
-pve-monitor is a Nagios plugin to monitor Proxmox VE clusters.
+A single-file Perl Nagios/Icinga2 plugin that monitors Proxmox VE clusters via the PVE API. No agent is installed on the cluster — the plugin authenticates to one node and reads cluster state from there.
 
-It can monitor openvz and qemu virtual machines, storages and cluster nodes without installing
-software on your monitored resources. It uses the Proxmox VE API to query the cluster status.
+It can check, in any combination:
 
-See http://pve-monitor.scriptutils.com for details and installation notes.
+- **Nodes** — uptime, CPU / memory / disk usage, plus over-allocation of CPU and memory across the VMs running on each node
+- **Storages** — disk usage per storage backend
+- **Qemu virtual machines** — running state plus CPU / memory / disk usage
+- **Containers** (LXC and the legacy OpenVZ flag) — same as Qemu
+- **Pools** — auto-expands membership against the live cluster, so VMs/storages added to a pool are picked up without re-editing the plugin config
+- **Quorum disk** (`--qdisk`)
+- **Ceph health** (`--ceph`) — maps `HEALTH_OK` / `HEALTH_WARN` / `HEALTH_ERR` to OK / WARNING / CRITICAL, plus per-check detail
+- **Subscriptions** (`--subscriptions`) — per-node subscription status and days-until-expiry, with configurable warn/crit day thresholds
 
-Documentation française: http://pve-monitor.scriptutils.com/francais/presentation/
+## Requirements
+
+- Perl 5.14 or newer
+- CPAN modules:
+  - `Net::Proxmox::VE`
+  - `IO::Socket::SSL`
+  - `Getopt::Long`
+  - `JSON`
+
+On a Debian/Ubuntu monitoring host:
+
+```sh
+apt-get install -y libjson-perl libwww-perl libio-socket-ssl-perl cpanminus
+cpanm Net::Proxmox::VE
+```
+
+## Install
+
+The plugin is a single Perl script:
+
+```sh
+cp pve-monitor.pl /usr/lib/nagios/plugins/pve-monitor.pl   # or your Icinga2 PluginDir
+cp icinga2/pve-monitor.conf /etc/icinga2/pve-monitor.conf
+chmod +x /usr/lib/nagios/plugins/pve-monitor.pl
+```
+
+Then edit `/etc/icinga2/pve-monitor.conf` to point at your cluster (see *Configuration* below). Example Icinga2 `CheckCommand` / host / service definitions live under `icinga2/conf.d/`.
+
+## Usage
+
+```sh
+perl ./pve-monitor.pl --conf ./pve-monitor.conf --nodes --storages --containers --qemu
+```
+
+Pick checks individually with their flags (`--nodes`, `--storages`, `--qemu`, `--containers`, `--ceph`, `--subscriptions`, `--qdisk`, `--pools <All|name>`), or use the `--check` selector:
+
+```sh
+perl ./pve-monitor.pl --conf ./pve-monitor.conf --check nodes,storages,qemu,containers,ceph
+```
+
+Useful flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--conf <file>` | Path to the plugin config file (required for actual checks) |
+| `--check <list>` | Comma-separated list of checks (alias for the per-mode flags) |
+| `--singlenode` | Skip the cluster-quorum probe; treat the target as a standalone node |
+| `--verify-ssl` | Validate the PVE node's TLS certificate (default: disabled for self-signed certs) |
+| `--timeout N` | HTTP timeout per node, in seconds (default: 5) |
+| `--pools <name>` | Auto-expand a pool's members (`--pools All` for every defined pool) |
+| `--ignoretemp` | Skip VM templates when expanding pools |
+| `--perfdata` | Emit Nagios perfdata after the summary (PNP4Nagios / check_multi style) |
+| `--html` | Replace `\n` line breaks with `<br>` in the summary |
+| `--json` | Emit a single JSON document on stdout instead of the Nagios summary |
+| `--dry-run` | Parse the config and exit OK with a count of loaded blocks |
+| `--debug` | Verbose trace on STDERR (never mixed into the Nagios stdout summary) |
+| `--sub-warn-days N` / `--sub-crit-days N` | WARN/CRIT thresholds for `--subscriptions` (defaults: 30 / 7) |
+| `--help` | Full flag list |
+
+Exit codes follow the Nagios convention: `0` OK, `1` WARNING, `2` CRITICAL, `3` UNKNOWN. When multiple checks are requested in one invocation, the overall exit code is the most severe of any individual check.
+
+## Configuration
+
+The plugin config is a small block-based format. See `icinga2/pve-monitor.conf` for a working example.
+
+```conf
+# Cluster nodes. The plugin will probe these in randomized order and use
+# the first quorate (or, with --singlenode, the first reachable) member
+# to query the cluster.
+node pve01 {
+    address              10.0.0.1
+    port                 8006             # optional, default 8006
+    monitor_account      icinga
+    monitor_token_id     icinga-monitor
+    monitor_token_secret 12345678-90ab-cdef-1234-567890abcdef
+    realm                pam              # optional, default 'pam'
+    mem                  80 90            # WARN  CRIT  percent
+    cpu                  80 95
+    disk                 80 90
+    mem_alloc            90 100           # over-allocation: sum(VM maxmem) / node maxmem
+    cpu_alloc            90 100
+}
+
+# Storage backends. 'node' is required and must match a 'node' block above.
+storage local {
+    node pve01
+    disk 80 90
+}
+
+# VMs and containers. Threshold lines: 'metric warn crit'.
+container web01 { mem 80 90; cpu 80 95; disk 80 90 }
+qemu      db01  { mem 80 90; cpu 80 95; disk 80 90 }
+
+# Pools — auto-expand to include any matching members from the cluster.
+# Activated only when --pools <name> (or --pools All) is passed.
+pool web-tier { mem 90 95; cpu 90 95; disk 90 95 }
+```
+
+### Authentication
+
+A node block must declare **either** `monitor_password` **or** the pair `monitor_token_id` + `monitor_token_secret`. Token authentication is the recommended path: it's a per-purpose credential that PVE can scope and revoke without touching a real user. Create one on the PVE side under *Datacenter → Permissions → API Tokens* and grant it `PVEAuditor` on the resources you want to monitor.
+
+If both are present, the token is used.
+
+### JSON output
+
+`--json` swaps the Nagios summary for a single JSON document with the same data the human format prints. Useful for Icinga2 API consumers, Prometheus textfile collectors, or anything else that prefers structured data:
+
+```json
+{
+  "exit_code": 0,
+  "plugin": "pve-monitor",
+  "status": "OK",
+  "version": "1.1",
+  "nodes": [
+    {
+      "name": "pve01",
+      "status": 0,
+      "cpu_status": 0,
+      "curcpu": "12.40",
+      "...": "..."
+    }
+  ]
+}
+```
+
+The connection-failure early-exit path also returns JSON when `--json` is set, so consumers never see two formats.
+
+## Icinga2 integration
+
+`icinga2/` contains an example deployment layout:
+
+- `icinga2/pve-monitor.conf` — install to `/etc/icinga2/pve-monitor.conf`; this is the plugin's own config (cluster nodes, thresholds).
+- `icinga2/conf.d/commands.conf` — `CheckCommand` objects, one per check mode.
+- `icinga2/conf.d/hosts.conf` / `services.conf` — sample host + service applying those commands.
+- `icinga2/conf.d/templates.conf` — generic host / service templates the samples import.
+
+The script itself is expected to live in Icinga2's `PluginDir`. Adjust paths to match your distro layout.
+
+## CI
+
+`make test` runs the same syntax-and-`--version` smoke check that `.travis.yml` ran historically. There is no full test suite — the script needs a real PVE cluster to validate behavior end-to-end. `--dry-run` is the fastest way to check the plugin config file is well-formed.
+
+## License
+
+GPL-3.0. See `gpl-3.0.txt`.
+
+## History / upstream
+
+This is the [`apachler/pve-monitor`](https://github.com/apachler/pve-monitor) fork. Original project documentation (which predates several of the flags above and still references the OpenVZ-era container model) lives at `http://pve-monitor.scriptutils.com`, with French notes at `http://pve-monitor.scriptutils.com/francais/presentation/`.
