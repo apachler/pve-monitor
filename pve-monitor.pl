@@ -37,7 +37,6 @@ use Net::Proxmox::VE;
 use IO::Socket::SSL;
 use Getopt::Long;
 use Switch;
-use Data::Dump qw(dump);
 
 my $configurationFile = './pve-monitor.conf';
 my $pluginVersion = '1.1';
