@@ -65,6 +65,7 @@ my %arguments = (
     'singlenode'     => undef,
     'verify_ssl'     => undef,
     'check'          => undef,
+    'dry_run'        => undef,
 );
 
 sub usage {
@@ -95,6 +96,8 @@ sub usage {
     print "  --check <list>\n";
     print "    Comma-separated list of checks (alias for the per-mode flags above).\n";
     print "    Example: --check nodes,storages,qemu,containers\n";
+    print "  --dry-run\n";
+    print "    Parse the config and exit OK; useful for CI/syntax-check workflows\n";
     print "  --perfdata\n";
     print "    Print nagios performance data for graphs (PNP4Nagios supported check_multi style) \n";
     print "  --html\n";
@@ -148,6 +151,7 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "singlenode"  => \$arguments{singlenode},
             "verify-ssl"  => \$arguments{verify_ssl},
             "check=s"     => \$arguments{check},
+            "dry-run"     => \$arguments{dry_run},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -767,6 +771,14 @@ close(FILE);
 if ( $readingObject ) {
     print "Invalid configuration ! (Probably missing '}' ) \n";
     exit $status{UNKNOWN};
+}
+
+if (defined $arguments{dry_run}) {
+    printf "OK config valid: %d nodes, %d storages, %d containers, %d qemu, %d pools\n",
+        scalar(@monitoredNodes), scalar(@monitoredStorages),
+        scalar(@monitoredOpenvz), scalar(@monitoredQemus),
+        scalar(@monitoredPools);
+    exit $status{OK};
 }
 
 # Probe nodes in randomized order so a dead node at the head of the config
