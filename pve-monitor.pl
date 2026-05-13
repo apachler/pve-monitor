@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# nagios: -epn
 
 #####################################################
 #
@@ -36,7 +35,6 @@ use strict;
 use Net::Proxmox::VE;
 use IO::Socket::SSL;
 use Getopt::Long;
-use Switch;
 
 my $configurationFile = './pve-monitor.conf';
 my $pluginVersion = '1.1';
@@ -192,9 +190,9 @@ while ( <FILE> ) {
 
     # we got an object definition here !
     if ( $line =~ m/([\S]+)\s+([\S]+)\s+\{/i ) {
-         switch ($1) {
-             case "node" {
-                 my $name         = $2;
+         my ($blockType, $blockName) = ($1, $2);
+         if ($blockType eq "node") {
+                 my $name         = $blockName;
                  my $warnCpu      = undef;
                  my $warnMem      = undef;
                  my $warnDisk     = undef;
@@ -218,96 +216,94 @@ while ( <FILE> ) {
 
                      next if ( $objLine =~ m/^(\s+)?#/ );
                      if ( $objLine =~ m/([\S]+)\s+([\S]+)(\s+([\S]+))?/i ) {
-
-                         switch ($1) {
-                             case "cpu" {
-                                 if ((is_number $2)and(is_number $4)) {
-                                     $warnCpu = $2;
-                                     $critCpu = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid CPU declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "cpu_alloc" {
-                                 if((is_number $2)and(is_number $4)) {
-                                     $warnCpuAlloc = $2;
-                                     $critCpuAlloc = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid CPU_ALLOC declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "mem" {
-                                 if ((is_number $2)and(is_number $4)) {
-                                     $warnMem = $2;
-                                     $critMem = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid MEM declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "disk" {
-                                 if ((is_number $2)and(is_number $4)) {
-                                     $warnDisk = $2;
-                                     $critDisk = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid DISK declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "mem_alloc" {
-                                 if ((is_number $2)and(is_number $4)) {
-                                     $warnMemAlloc = $2;
-                                     $critMemAlloc = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid MEM_ALLOC declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "address" {
-                                 $nAddr = $2;
-                             }
-                             case "port" {
-                                 if (is_number $2) {
-                                     $nPort = $2;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid PORT declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "monitor_account" {
-                                 $nUser = $2;
-                             }
-                             case "monitor_password" {
-                                 $nPwd = $2;
-                             }
-                             case "realm" {
-                                 $nRealm = $2;
+                         my $token = $1;
+                         if ($token eq "cpu") {
+                             if ((is_number $2)and(is_number $4)) {
+                                 $warnCpu = $2;
+                                 $critCpu = $4;
                              }
                              else {
                                  close(FILE);
-                                 print "Invalid token $1 in $name definition !\n";
+                                 print "Invalid CPU declaration " .
+                                       "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
+                         }
+                         elsif ($token eq "cpu_alloc") {
+                             if((is_number $2)and(is_number $4)) {
+                                 $warnCpuAlloc = $2;
+                                 $critCpuAlloc = $4;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid CPU_ALLOC declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "mem") {
+                             if ((is_number $2)and(is_number $4)) {
+                                 $warnMem = $2;
+                                 $critMem = $4;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid MEM declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "disk") {
+                             if ((is_number $2)and(is_number $4)) {
+                                 $warnDisk = $2;
+                                 $critDisk = $4;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid DISK declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "mem_alloc") {
+                             if ((is_number $2)and(is_number $4)) {
+                                 $warnMemAlloc = $2;
+                                 $critMemAlloc = $4;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid MEM_ALLOC declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "address") {
+                             $nAddr = $2;
+                         }
+                         elsif ($token eq "port") {
+                             if (is_number $2) {
+                                 $nPort = $2;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid PORT declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "monitor_account") {
+                             $nUser = $2;
+                         }
+                         elsif ($token eq "monitor_password") {
+                             $nPwd = $2;
+                         }
+                         elsif ($token eq "realm") {
+                             $nRealm = $2;
+                         }
+                         else {
+                             close(FILE);
+                             print "Invalid token $token in $name definition !\n";
+                             exit $status{UNKNOWN};
                          }
                      }
                      elsif ( $objLine =~ m/\}/i ) {
@@ -364,8 +360,8 @@ while ( <FILE> ) {
                  }
              }
 
-             case "storage" {
-                 my $name     = $2;
+         elsif ($blockType eq "storage") {
+                 my $name     = $blockName;
                  my $warnDisk = undef;
                  my $critDisk = undef;
                  my $node = undef;
@@ -377,28 +373,27 @@ while ( <FILE> ) {
 
                      next if ( $objLine =~ m/^#/i );
                      if ( $objLine =~ m/([\S]+)\s+([\S]+)(\s+([\S]+))?/i ) {
-                         switch ($1) {
-                             case "disk" {
-                                 if ((is_number $2)and(is_number $4)) {
-                                     $warnDisk = $2;
-                                     $critDisk = $4;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid DISK declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "node" {
-                                 $node = $2;
+                         my $token = $1;
+                         if ($token eq "disk") {
+                             if ((is_number $2)and(is_number $4)) {
+                                 $warnDisk = $2;
+                                 $critDisk = $4;
                              }
                              else {
                                  close(FILE);
-                                 print "Invalid token $1 " .
-                                       "in $name definition !\n";
+                                 print "Invalid DISK declaration " .
+                                       "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
+                         }
+                         elsif ($token eq "node") {
+                             $node = $2;
+                         }
+                         else {
+                             close(FILE);
+                             print "Invalid token $token " .
+                                   "in $name definition !\n";
+                             exit $status{UNKNOWN};
                          }
                      }
                      elsif ( $objLine =~ m/\}/i ) {
@@ -434,8 +429,8 @@ while ( <FILE> ) {
                  }
 
              }
-             case /openvz|lxc|container/ {
-                 my $name     = $2;
+         elsif ($blockType =~ /openvz|lxc|container/) {
+                 my $name     = $blockName;
                  my $warnCpu  = undef;
                  my $warnMem  = undef;
                  my $warnDisk = undef;
@@ -450,49 +445,48 @@ while ( <FILE> ) {
 
                      next if ( $objLine =~ m/^#/i );
                      if ( $objLine =~ m/([\S]+)\s+([\S]+)\s+([\S]+)/i ) {
-                         switch ($1) {
-                             case "cpu" {
-                                 if ((is_number $2) and (is_number $3)) {
-                                     $warnCpu = $2;
-                                     $critCpu = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid CPU declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "mem" {
-                                 if ((is_number $2) and (is_number $3)) {
-                                     $warnMem = $2;
-                                     $critMem = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid MEM declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "disk" { 
-                                 if ((is_number $2) and (is_number $3)) {
-                                     $warnDisk = $2;
-                                     $critDisk = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid DISK declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
+                         my $token = $1;
+                         if ($token eq "cpu") {
+                             if ((is_number $2) and (is_number $3)) {
+                                 $warnCpu = $2;
+                                 $critCpu = $3;
                              }
                              else {
                                  close(FILE);
-                                 print "Invalid token $1 " .
-                                       "in $name definition !\n";
+                                 print "Invalid CPU declaration " .
+                                       "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
+                         }
+                         elsif ($token eq "mem") {
+                             if ((is_number $2) and (is_number $3)) {
+                                 $warnMem = $2;
+                                 $critMem = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid MEM declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "disk") {
+                             if ((is_number $2) and (is_number $3)) {
+                                 $warnDisk = $2;
+                                 $critDisk = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid DISK declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         else {
+                             close(FILE);
+                             print "Invalid token $token " .
+                                   "in $name definition !\n";
+                             exit $status{UNKNOWN};
                          }
                      }
                      elsif ( $objLine =~ m/\}/i ) {
@@ -530,8 +524,8 @@ while ( <FILE> ) {
                      }
                  }
              }
-             case "qemu" {
-                 my $name     = $2;
+         elsif ($blockType eq "qemu") {
+                 my $name     = $blockName;
                  my $warnCpu  = undef;
                  my $warnMem  = undef;
                  my $warnDisk = undef;
@@ -546,49 +540,48 @@ while ( <FILE> ) {
 
                      next if ( $objLine =~ m/^#/i );
                      if ( $objLine =~ m/([\S]+)\s+([\S]+)\s+([\S]+)/i ) {
-                         switch ($1) {
-                             case "cpu" {
-                                 if ((is_number $2)and(is_number $3)) {
-                                     $warnCpu = $2;
-                                     $critCpu = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid CPU declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "mem" {
-                                 if ((is_number $2)and(is_number $3)) {
-                                     $warnMem = $2;
-                                     $critMem = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid MEM declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-					     case "disk" {
-			 if ((is_number $2)and(is_number $3)) {
-                                     $warnDisk = $2;
-                                     $critDisk = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid DISK declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
+                         my $token = $1;
+                         if ($token eq "cpu") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnCpu = $2;
+                                 $critCpu = $3;
                              }
                              else {
                                  close(FILE);
-                                 print "Invalid token $1 " .
-                                       "in $name definition !\n";
+                                 print "Invalid CPU declaration " .
+                                       "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
+                         }
+                         elsif ($token eq "mem") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnMem = $2;
+                                 $critMem = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid MEM declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "disk") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnDisk = $2;
+                                 $critDisk = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid DISK declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         else {
+                             close(FILE);
+                             print "Invalid token $token " .
+                                   "in $name definition !\n";
+                             exit $status{UNKNOWN};
                          }
                      }
                      elsif ( $objLine =~ m/\}/i ) {
@@ -627,8 +620,8 @@ while ( <FILE> ) {
                      }
                  }
              }
-             case "pool" {
-                 my $name     = $2;
+         elsif ($blockType eq "pool") {
+                 my $name     = $blockName;
                  my $warnCpu  = undef;
                  my $warnMem  = undef;
                  my $warnDisk = undef;
@@ -643,49 +636,48 @@ while ( <FILE> ) {
 
                      next if ( $objLine =~ m/^#/i );
                      if ( $objLine =~ m/([\S]+)\s+([\S]+)\s+([\S]+)/i ) {
-                         switch ($1) {
-                             case "cpu" {
-                                 if ((is_number $2)and(is_number $3)) {
-                                     $warnCpu = $2;
-                                     $critCpu = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid CPU declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "mem" {
-                                 if ((is_number $2)and(is_number $3)) {
-                                     $warnMem = $2;
-                                     $critMem = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid MEM declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
-                             }
-                             case "disk" {
-			 if ((is_number $2)and(is_number $3)) {
-                                     $warnDisk = $2;
-                                     $critDisk = $3;
-                                 }
-                                 else {
-                                     close(FILE);
-                                     print "Invalid DISK declaration " .
-                                           "in $name definition\n";
-                                     exit $status{UNKNOWN};
-                                 }
+                         my $token = $1;
+                         if ($token eq "cpu") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnCpu = $2;
+                                 $critCpu = $3;
                              }
                              else {
                                  close(FILE);
-                                 print "Invalid token $1 " .
-                                       "in $name definition !\n";
+                                 print "Invalid CPU declaration " .
+                                       "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
+                         }
+                         elsif ($token eq "mem") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnMem = $2;
+                                 $critMem = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid MEM declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         elsif ($token eq "disk") {
+                             if ((is_number $2)and(is_number $3)) {
+                                 $warnDisk = $2;
+                                 $critDisk = $3;
+                             }
+                             else {
+                                 close(FILE);
+                                 print "Invalid DISK declaration " .
+                                       "in $name definition\n";
+                                 exit $status{UNKNOWN};
+                             }
+                         }
+                         else {
+                             close(FILE);
+                             print "Invalid token $token " .
+                                   "in $name definition !\n";
+                             exit $status{UNKNOWN};
                          }
                      }
                      elsif ( $objLine =~ m/\}/i ) {
@@ -714,12 +706,11 @@ while ( <FILE> ) {
                      }
                  }
              }
-             else {
-                 close(FILE);
-                 print "Invalid token $1 " .
-                       "in configuration file $arguments{conf} !\n";
-                 exit $status{UNKNOWN};
-             }
+         else {
+             close(FILE);
+             print "Invalid token $blockType " .
+                   "in configuration file $arguments{conf} !\n";
+             exit $status{UNKNOWN};
          }
     }
 }
@@ -777,29 +768,24 @@ for my $a (@probeOrder) {
     # we are probably on a dead node and data is irrelevant
     my $cstatuses = $pve->get('/cluster/status');
     foreach my $item( @$cstatuses ) {
-        switch ($item->{type}) {
-            case "node" {
-                # qdisks are also type "node"
-                if ($item->{qdisk} eq "1") {
-                    debug "Found qdisk $item->{name} in cluster\n";
+        next unless $item->{type} eq "node";
 
-                    $qdisk{id}        = $item->{id};
-                    $qdisk{name}      = $item->{name};
-                    $qdisk{estranged} = $item->{estranged}; # boolean value
-                    $qdisk{cstate}    = $item->{state}; # boolean value
-                }
-                elsif ($item->{local} eq "1") {
-                    if ($item->{estranged} eq "0" || $item->{estranged} eq "") {
-                         $isClusterMember = 1;
-                         debug "Node $item->{ip} is in cluster and seems sane. Using it to query cluster status\n";
-                    }
-                    else {
-                        debug "Node $item->{ip} is estranged ! Skipping it !\n";
-                    }
-                }
+        # qdisks are also type "node"
+        if ($item->{qdisk} eq "1") {
+            debug "Found qdisk $item->{name} in cluster\n";
+
+            $qdisk{id}        = $item->{id};
+            $qdisk{name}      = $item->{name};
+            $qdisk{estranged} = $item->{estranged}; # boolean value
+            $qdisk{cstate}    = $item->{state}; # boolean value
+        }
+        elsif ($item->{local} eq "1") {
+            if ($item->{estranged} eq "0" || $item->{estranged} eq "") {
+                 $isClusterMember = 1;
+                 debug "Node $item->{ip} is in cluster and seems sane. Using it to query cluster status\n";
             }
-            default {
-                next;
+            else {
+                debug "Node $item->{ip} is estranged ! Skipping it !\n";
             }
         }
     }
@@ -861,8 +847,7 @@ if (defined $arguments{pools}) {
 
 	    #fill monitored pool members not defined in config already
 	    foreach my $member( @$members ) {
-	        switch ($member->{type}) {
-	            case /openvz|lxc/ {
+	        if ($member->{type} =~ /openvz|lxc/) {
                         unless ( ( grep $_->{name} eq  $member->{name}, @monitoredOpenvz ) || ( $member->{template} eq 1 && defined $arguments{ignoretemp} ) ) {
                             $monitoredOpenvz[scalar(@monitoredOpenvz)] = (
                             {
@@ -888,8 +873,8 @@ if (defined $arguments{pools}) {
 
 	                    debug "Loaded container " . $member->{name} . " from pool " . $mpool->{name} . "\n";
 	                }
-	            }
-	            case "qemu" {
+	        }
+	        elsif ($member->{type} eq "qemu") {
                         unless ( ( grep $_->{name} eq  $member->{name}, @monitoredQemus) || ( $member->{template} eq 1 && defined $arguments{ignoretemp} ) ) {
 		            $monitoredQemus[scalar(@monitoredQemus)] = (
 		            {
@@ -915,8 +900,8 @@ if (defined $arguments{pools}) {
 		 
                              debug "Loaded qemu " . $member->{name} . " from pool " . $mpool->{name} . "\n";
 		        }
-	            }
-	            case "storage" {
+	        }
+	        elsif ($member->{type} eq "storage") {
 	                unless (grep $_->{name} eq  $member->{storage}, @monitoredStorages) {
 			     $monitoredStorages[scalar(@monitoredStorages)] = ({
 			         name         => $member->{storage},
@@ -931,8 +916,7 @@ if (defined $arguments{pools}) {
 
 		             debug "Loaded storage " . $member->{storage} . " from pool " . $mpool->{name} . "\n";
 		         }
-	            }
-                }
+	        }
             }
         }
     }
@@ -940,8 +924,7 @@ if (defined $arguments{pools}) {
 
 # loop the objects to compare our definitions with the current state of the cluster
 foreach my $item( @$objects ) {
-    switch ($item->{type}) {
-        case "node" {
+    if ($item->{type} eq "node") {
             # loop the node array to see if that one is monitored
             foreach my $mnode( @monitoredNodes ) {
                 next unless ($item->{node} eq $mnode->{name});
@@ -981,7 +964,7 @@ foreach my $item( @$objects ) {
                 last;
             }
         }
-        case "storage" {
+        elsif ($item->{type} eq "storage") {
             foreach my $mstorage( @monitoredStorages ) {
                 next unless ($item->{storage} eq $mstorage->{name});
                 next unless ($item->{node} eq $mstorage->{node});
@@ -1006,7 +989,7 @@ foreach my $item( @$objects ) {
 
             next;
         }
-        case /openvz|lxc/ {
+        elsif ($item->{type} =~ /openvz|lxc/) {
             #loop monitored nodes to increase mem_hi_limit
             foreach my $mnode( @monitoredNodes ) {
                 next unless $mnode->{name} eq $item->{node};
@@ -1059,7 +1042,7 @@ foreach my $item( @$objects ) {
             }
             next;
         }
-        case "qemu" {
+        elsif ($item->{type} eq "qemu") {
             #loop monitored nodes to increase mem_hi_limit
             foreach my $mnode( @monitoredNodes ) {
                 next unless $mnode->{name} eq $item->{node};
@@ -1113,7 +1096,6 @@ foreach my $item( @$objects ) {
 
             next;
         }
-    }
 }
 
 # Finally, loop the monitored objects arrays to report situation
