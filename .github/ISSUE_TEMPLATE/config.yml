@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/apachler/pve-monitor/security/advisories/new
+    about: |
+      Use GitHub's private security-advisory flow for anything that
+      could leak credentials, bypass authentication, or let a malicious
+      PVE response compromise the monitoring host. See SECURITY.md.

@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a defect in pve-monitor
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing! The information below is what we'll need to
+        reproduce the bug without going back and forth in comments.
+        **Security issues do not go here** — use the private advisory
+        flow linked from the issue chooser, or see `SECURITY.md`.
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: pve-monitor version
+      description: "Output of `perl pve-monitor.pl --version`"
+      placeholder: "e.g. pve-monitor.pl version 1.1"
+    validations:
+      required: true
+
+  - type: input
+    id: pve_version
+    attributes:
+      label: Proxmox VE version
+      description: "From `pveversion` on the cluster node, or the VE web UI footer"
+      placeholder: "e.g. pve-manager/8.2.4/..."
+    validations:
+      required: true
+
+  - type: input
+    id: perl_version
+    attributes:
+      label: Perl version on the monitoring host
+      description: "Output of `perl -v` (first line)"
+      placeholder: "e.g. perl 5, version 38, subversion 2"
+    validations:
+      required: true
+
+  - type: input
+    id: nproxmox_version
+    attributes:
+      label: Net::Proxmox::VE version
+      description: "Output of `perl -MNet::Proxmox::VE -e 'print $Net::Proxmox::VE::VERSION,\"\\n\"'`"
+      placeholder: "e.g. 0.44"
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and config
+      description: "The exact CLI invocation, and a minimal pve-monitor.conf that reproduces it (redact passwords / tokens)."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed output
+      description: "Run with `--debug --json` if possible, paste stdout *and* stderr. Redact addresses / hostnames as needed."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true

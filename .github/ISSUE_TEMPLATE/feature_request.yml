@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a new check mode, CLI flag, or behavior
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For the four already-proposed check modes (backup-job freshness,
+        snapshot age, replication status, tag-based discovery), please
+        comment on or link the existing feature backlog in `CLAUDE.md`
+        rather than opening a duplicate.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: What is the operational pain point?
+      description: "Describe what you're trying to monitor and what currently doesn't work, before suggesting a solution."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: "If it's a new check mode: name the CLI flag, the PVE API endpoint(s) it should query, and the OK/WARNING/CRITICAL mapping. If it's a config-format change: show before/after snippets."
+    validations:
+      required: true
+
+  - type: input
+    id: pve_endpoint
+    attributes:
+      label: PVE API endpoint(s) involved
+      description: "If applicable. e.g. /cluster/replication, /nodes/<n>/qemu/<vmid>/snapshot."
+      placeholder: "n/a if not API-bound"
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: "Other monitoring plugins, manual scripts, or existing pve-monitor flags you've already tried. Helps separate 'this is genuinely missing' from 'I haven't found the right flag yet'."
+
+  - type: checkboxes
+    id: willing_to_contribute
+    attributes:
+      label: Are you open to sending a PR?
+      options:
+        - label: "Yes, if the maintainer agrees the proposal is in scope"
