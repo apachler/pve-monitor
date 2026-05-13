@@ -30,7 +30,7 @@
 #
 
 use strict;
-# use warnings;
+use warnings;
 
 use Net::Proxmox::VE;
 use IO::Socket::SSL;
