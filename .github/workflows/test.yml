@@ -54,3 +54,8 @@ jobs:
         # rules out the entire class of "parser broke on block X" bugs
         # that 'perl ./pve-monitor.pl --version' alone misses.
         run: perl ./pve-monitor.pl --conf icinga2/pve-monitor.conf --dry-run
+
+      - name: prove t/
+        # Runs the full test suite (option parsing, parser variants,
+        # report blocks via a Net::Proxmox::VE mock, JSON output, etc).
+        run: prove -r t/

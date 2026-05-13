@@ -1,0 +1,60 @@
+name: coverage
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.38"
+
+      - name: Install dependencies (runtime + Devel::Cover)
+        run: |
+          cpanm --notest --quiet \
+            IO::Socket::SSL \
+            JSON \
+            Net::Proxmox::VE \
+            Devel::Cover
+
+      - name: Run prove under Devel::Cover
+        run: |
+          rm -rf cover_db
+          PERL5OPT="-MDevel::Cover=-silent,1,-db,cover_db,-coverage,statement,branch,subroutine" \
+            prove -r t/
+
+      - name: Generate report (HTML + JSON summary)
+        id: report
+        run: |
+          # Text summary into the step log (visible in the run).
+          cover -summary | tee cover_summary.txt
+          # HTML and JSON for the artifact / badge wiring.
+          cover -report html_basic -outputdir cover_db
+          cover -report json -outputdir cover_db
+          # Pull the blended-total percentage for the run summary.
+          pct=$(perl -ne 'print $1 if /^Total\s+\S+\s+\S+\s+\S+\s+(\S+)/' cover_summary.txt)
+          echo "coverage_total=$pct" >>"$GITHUB_OUTPUT"
+          echo "## Coverage: ${pct}%" >>"$GITHUB_STEP_SUMMARY"
+          {
+            echo '```'
+            cat cover_summary.txt
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: cover_db/
+          retention-days: 14
