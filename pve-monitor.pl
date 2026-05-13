@@ -108,6 +108,17 @@ sub debug {
     print STDERR @_;
 }
 
+# Aggregate Nagios statuses: return the most severe among the supplied codes.
+# Treats $status{UNDEF} (-1) as benign; OK/WARNING/CRITICAL/UNKNOWN order by value.
+sub max_status {
+    my $m = $status{OK};
+    for my $s (@_) {
+        next unless defined $s;
+        $m = $s if $s > $m;
+    }
+    return $m;
+}
+
 GetOptions ("nodes"       => \$arguments{nodes},
             "storages"    => \$arguments{storages},
             "openvz"      => \$arguments{openvz},
@@ -1108,7 +1119,7 @@ if (defined $arguments{nodes}) {
     my $reportSummary = '';
 
     foreach my $mnode( @monitoredNodes ) {
-        $statusScore += $mnode->{status};
+        $statusScore = max_status($statusScore, $mnode->{status});
 
         if ($mnode->{status} ne $status{UNDEF}) {
             # compute max memory usage
@@ -1170,14 +1181,13 @@ if (defined $arguments{nodes}) {
                   if ($mnode->{curcpu} > $mnode->{crit_cpu});
             }
 
-            my $curNodeStatus = $mnode->{cpu_status} +
-                                $mnode->{mem_status} +
-                                $mnode->{disk_status} +
-                                $mnode->{cpu_alloc_status} +
-                                $mnode->{mem_alloc_status};
-
-            $curNodeStatus = $status{CRITICAL}
-              if ($curNodeStatus >= $status{UNKNOWN});
+            my $curNodeStatus = max_status(
+                $mnode->{cpu_status},
+                $mnode->{mem_status},
+                $mnode->{disk_status},
+                $mnode->{cpu_alloc_status},
+                $mnode->{mem_alloc_status},
+            );
 
             if ($mnode->{status} ne $status{UNDEF}) {
                 $reportSummary .= 
@@ -1197,24 +1207,19 @@ if (defined $arguments{nodes}) {
                                   "node is out of cluster (dead?)" . $br;
             }
 
-            $statusScore += $curNodeStatus;
-
-            # Do not leave $statusScore at level unknown here
-            $statusScore++ if $statusScore eq $status{UNKNOWN};
+            $statusScore = max_status($statusScore, $curNodeStatus);
         }
         else {
             $reportSummary .= "$mnode->{name} " .
                               "is in status $rstatus{$status{UNKNOWN}}" . $br;
+            $statusScore = max_status($statusScore, $status{UNKNOWN});
         }
     }
-
-    $statusScore = $status{CRITICAL}
-      if (( $statusScore > $status{UNKNOWN}) or ($statusScore < 0));
 
     print "NODES $rstatus{$statusScore}  $workingNodes / " .
           scalar(@monitoredNodes) . " working nodes" . $br . $reportSummary;
 
-     $totalScore += $statusScore;
+     $totalScore = max_status($totalScore, $statusScore);
 }; if (defined $arguments{storages}) {
     my $statusScore = 0;
     my $workingStorages = 0;
@@ -1227,7 +1232,7 @@ if (defined $arguments{nodes}) {
 	#$mstorage->{name} .= "/" . $mstorage->{pool} if defined $mstorage->{pool};
 
         if ($mstorage->{status} eq $status{UNDEF}) {
-            $statusScore += $status{CRITICAL};
+            $statusScore = max_status($statusScore, $status{CRITICAL});
 
             $reportSummary .= "$mstorage->{name} ($mstorage->{node}) " .
                               "$rstatus{$status{CRITICAL}}: " .
@@ -1252,24 +1257,20 @@ if (defined $arguments{nodes}) {
 
             $workingStorages++;
 
-	    $statusScore += $mstorage->{disk_status};
-
-            $statusScore++ if $statusScore eq $status{UNKNOWN};
+	    $statusScore = max_status($statusScore, $mstorage->{disk_status});
         }
         else {
             $reportSummary .= "$mstorage->{name} " .
                               "is in status $rstatus{$status{UNKNOWN}}" . $br;
+            $statusScore = max_status($statusScore, $status{UNKNOWN});
         }
     }
-
-    $statusScore = $status{CRITICAL}
-      if ($statusScore > $status{UNKNOWN});
 
     print "STORAGE $rstatus{$statusScore} $workingStorages / " .
           scalar(@monitoredStorages) . " working storages" . $br . $reportSummary;
     $totalPerfData .= "STORAGE::check_pve_storages::storages=$workingStorages;;;0;" . scalar(@monitoredStorages) . " " . $perfData;
 
-     $totalScore += $statusScore;
+     $totalScore = max_status($totalScore, $statusScore);
 }; if (defined $arguments{openvz}) {
     my $statusScore = 0;
     my $workingVms = 0;
@@ -1332,7 +1333,7 @@ if (defined $arguments{nodes}) {
                 }
                 else {
                     $mopenvz->{status} = $status{CRITICAL};
-                    $statusScore += $status{CRITICAL};
+                    $statusScore = max_status($statusScore, $status{CRITICAL});
 
                     $reportSummary .= "$mopenvz->{name} " .
                         "$rstatus{$mopenvz->{status}} : " .
@@ -1340,29 +1341,25 @@ if (defined $arguments{nodes}) {
                 }
             }
 
-
-            $statusScore += $mopenvz->{cpu_status} +
-                            $mopenvz->{mem_status} +
-                            $mopenvz->{disk_status};
-
-            $statusScore++ if $statusScore eq $status{UNKNOWN};
+            $statusScore = max_status(
+                $statusScore,
+                $mopenvz->{cpu_status},
+                $mopenvz->{mem_status},
+                $mopenvz->{disk_status},
+            );
         }
         else {
             $reportSummary .= "$mopenvz->{name} " .
                               "is in status $rstatus{$status{UNKNOWN}}" . $br;
-
-            $statusScore += $status{UNKNOWN};
+            $statusScore = max_status($statusScore, $status{UNKNOWN});
         }
     }
-
-    $statusScore = $status{CRITICAL}
-      if ($statusScore > $status{UNKNOWN});
 
     print "OPENVZ $rstatus{$statusScore} $workingVms / " .
           scalar(@monitoredOpenvz) . " working VMs" . $br . $reportSummary;
     $totalPerfData .= "OPENVZ::check_pve_vms::vmcount=$workingVms;;;0;" . scalar(@monitoredOpenvz) . " " . $perfData;
 
-     $totalScore += $statusScore;
+     $totalScore = max_status($totalScore, $statusScore);
 }; if (defined $arguments{qemu}) {
     my $statusScore = 0;
     my $workingVms = 0;
@@ -1425,33 +1422,30 @@ if (defined $arguments{nodes}) {
                     $mqemu->{status} = $status{CRITICAL};
                     $reportSummary .= "$mqemu->{name} $rstatus{$mqemu->{status}} : " .
                                       "VM is $mqemu->{alive}" . $br;
-                    $statusScore += $status{CRITICAL};
+                    $statusScore = max_status($statusScore, $status{CRITICAL});
                 }
             }
 
-            $statusScore += $mqemu->{cpu_status} + 
-                            $mqemu->{mem_status} +
-                            $mqemu->{disk_status};
-
-            $statusScore++ if $statusScore eq $status{UNKNOWN};
+            $statusScore = max_status(
+                $statusScore,
+                $mqemu->{cpu_status},
+                $mqemu->{mem_status},
+                $mqemu->{disk_status},
+            );
         }
         else {
             $reportSummary .= "$mqemu->{name} " .
                               "is in status $rstatus{$status{UNKNOWN}}" . $br;
-
-            $statusScore += $status{UNKNOWN};
+            $statusScore = max_status($statusScore, $status{UNKNOWN});
         }
     }
-
-    $statusScore = $status{CRITICAL}
-      if ($statusScore > $status{UNKNOWN});
 
     print "QEMU $rstatus{$statusScore} $workingVms / " .
           scalar(@monitoredQemus) . " working VMs" . $br .
           $reportSummary;
     $totalPerfData .= "QEMU::check_pve_vms::vmcount=$workingVms;;;0;" . scalar(@monitoredQemus) . " " . $perfData;
 
-     $totalScore += $statusScore;
+     $totalScore = max_status($totalScore, $statusScore);
 }; if (not defined $arguments{qemu} and not defined $arguments{openvz} and not defined $arguments{storages} and not defined $arguments{nodes}) {
     usage();
     exit $status{UNKNOWN};
