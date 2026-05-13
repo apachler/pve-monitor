@@ -983,7 +983,7 @@ foreach my $item( @$objects ) {
                     }
                 }
                 else {
-                    $mnode->{status}  = -1;
+                    $mnode->{status}  = $status{UNDEF};
                     $mnode->{uptime}  = 0;
                     $mnode->{curmem}  = 0;
                     $mnode->{curdisk} = 0;
@@ -1010,7 +1010,7 @@ foreach my $item( @$objects ) {
                     }
                 }
                 else {
-                    $mstorage->{status}  = -1;
+                    $mstorage->{status}  = $status{UNDEF};
                     $mstorage->{curdisk} = 0;
                 }
 
@@ -1259,7 +1259,7 @@ if (defined $arguments{nodes}) {
         #Add pool name to output
 	#$mstorage->{name} .= "/" . $mstorage->{pool} if defined $mstorage->{pool};
 
-        if ($mstorage->{status} eq -1) {
+        if ($mstorage->{status} eq $status{UNDEF}) {
             $statusScore += $status{CRITICAL};
 
             $reportSummary .= "$mstorage->{name} ($mstorage->{node}) " .
