@@ -1,6 +1,7 @@
 # pve-monitor
 
 [![test](https://github.com/apachler/pve-monitor/actions/workflows/test.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/test.yml)
+[![coverage](https://github.com/apachler/pve-monitor/actions/workflows/coverage.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/coverage.yml)
 [![release](https://img.shields.io/github/v/release/apachler/pve-monitor?display_name=tag&sort=semver)](https://github.com/apachler/pve-monitor/releases/latest)
 [![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![perl](https://img.shields.io/badge/perl-5.14%2B-blue.svg)](#requirements)
@@ -157,9 +158,34 @@ The connection-failure early-exit path also returns JSON when `--json` is set, s
 
 The script itself is expected to live in Icinga2's `PluginDir`. Adjust paths to match your distro layout.
 
-## CI
+## CI and tests
 
-`make test` runs the syntax-and-`--version` smoke check. The full CI lives in `.github/workflows/test.yml` and additionally exercises `--help` and `--dry-run` against the example Icinga2 config across a Perl 5.14 / 5.20 / 5.38 matrix. There is no full test suite — the script needs a real PVE cluster to validate behavior end-to-end. `--dry-run` is the fastest way to confirm a plugin config file is well-formed.
+The test suite lives under `t/` and runs with `prove`:
+
+```sh
+prove -r t/
+```
+
+11 test files (149 individual assertions) cover option parsing, the config-file parser, the `--check` selector, every reporting block (nodes / storages / qemu / containers / ceph / subscriptions / qdisk), pool expansion, `--json` output, threshold edge cases, dead-node sentinels, and `--ignoretemp`. PVE API calls are stubbed by a small `Net::Proxmox::VE` mock at `t/lib/` that returns canned JSON keyed by the API path the script asks for.
+
+`make test` is the lightweight smoke check from the original Makefile (`perl ./pve-monitor.pl --version`).
+
+To produce a coverage report locally:
+
+```sh
+cpanm Devel::Cover    # one-time
+PERL5OPT="-MDevel::Cover=-silent,1,-coverage,statement,branch,subroutine" prove -r t/
+cover -summary
+cover -report html_basic   # writes cover_db/coverage.html
+```
+
+GitHub Actions runs three workflows:
+
+- **`.github/workflows/test.yml`** — on every push / PR, runs `make test`, `--help`, `--dry-run` against the example Icinga2 config, and `prove -r t/` across a Perl 5.14 / 5.20 / 5.38 matrix.
+- **`.github/workflows/coverage.yml`** — runs the same suite once under `Devel::Cover`, prints the per-file summary into the GitHub step summary, and uploads the HTML report as a 14-day artifact.
+- **`.github/workflows/release.yml`** — see [Releases](#releases).
+
+There is no fully end-to-end test — the script ultimately needs a real PVE cluster for live API behavior. `--dry-run` against your real config is the fastest way to confirm the plugin's config file is well-formed.
 
 ## Releases
 
