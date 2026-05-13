@@ -65,6 +65,7 @@ my %arguments = (
     'timeout'        => 5,
     'debug'          => undef,
     'singlenode'     => undef,
+    'verify_ssl'     => undef,
 );
 
 sub usage {
@@ -90,6 +91,8 @@ sub usage {
     print "    Check the state of the cluster's quorum disk\n";
     print "  --singlenode\n";
     print "    Consider there is no cluster, just a single node\n";
+    print "  --verify-ssl\n";
+    print "    Verify the PVE node's TLS certificate (default: disabled for self-signed certs)\n";
     print "  --perfdata\n";
     print "    Print nagios performance data for graphs (PNP4Nagios supported check_multi style) \n";
     print "  --html\n";
@@ -116,6 +119,7 @@ GetOptions ("nodes"       => \$arguments{nodes},
             "ignoretemp"  => \$arguments{ignoretemp},
             "qdisk"       => \$arguments{qdisk},
             "singlenode"  => \$arguments{singlenode},
+            "verify-ssl"  => \$arguments{verify_ssl},
             "perfdata"    => \$arguments{perfdata},
             "html"        => \$arguments{html},
             "conf=s"      => \$arguments{conf},
@@ -745,10 +749,9 @@ for($a = 0; $a < scalar(@monitoredNodes); $a++) {
         debug    => $arguments{debug},
         realm    => $realm,
         timeout  => $arguments{timeout},
-		ssl_opts => {
-			SSL_verify_mode => SSL_VERIFY_NONE,
-			verify_hostname => 0
-		}
+		ssl_opts => $arguments{verify_ssl}
+			? { SSL_verify_mode => SSL_VERIFY_PEER, verify_hostname => 1 }
+			: { SSL_verify_mode => SSL_VERIFY_NONE, verify_hostname => 0 }
     );
 
     next unless $pve->login;
