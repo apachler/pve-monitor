@@ -1,0 +1,56 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    name: perl ${{ matrix.perl }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 5.14 is the floor declared in CLAUDE.md (and the lowest version
+        # in the historical .travis.yml). 5.20 was the .travis.yml upper
+        # bound. 5.38 is current Debian stable. Keeping the spread honest
+        # catches both modern-Perl breakage and accidental use of features
+        # that postdate the 5.14 promise.
+        perl: ["5.14", "5.20", "5.38"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Perl ${{ matrix.perl }}
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl }}
+
+      - name: Install CPAN dependencies
+        run: |
+          cpanm --notest --quiet \
+            IO::Socket::SSL \
+            JSON \
+            Net::Proxmox::VE
+
+      - name: Syntax + --version smoke (make test)
+        run: make test
+
+      - name: --help renders without errors
+        # Catches usage() typos and missing prints. --help exits 3 (UNKNOWN)
+        # by Nagios convention, so we tolerate that explicitly.
+        run: |
+          set +e
+          perl ./pve-monitor.pl --help
+          rc=$?
+          set -e
+          if [ "$rc" != "3" ] && [ "$rc" != "0" ]; then
+            echo "--help exited with $rc (expected 0 or 3)"; exit 1
+          fi
+
+      - name: Parser regression: --dry-run against example config
+        # The example config covers every block type the parser knows
+        # (node, storage, container, qemu, pool), so a passing --dry-run
+        # rules out the entire class of "parser broke on block X" bugs
+        # that 'perl ./pve-monitor.pl --version' alone misses.
+        run: perl ./pve-monitor.pl --conf icinga2/pve-monitor.conf --dry-run
