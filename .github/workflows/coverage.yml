@@ -52,6 +52,26 @@ jobs:
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
 
+      - name: Enforce coverage floor
+        # Buffer below the measured baseline (81.4% as of the suite's
+        # initial commit). Bumping this up is appropriate after a real
+        # coverage improvement lands; lowering it should require a
+        # deliberate PR review.
+        env:
+          COVERAGE_FLOOR: "78.0"
+        run: |
+          pct="${{ steps.report.outputs.coverage_total }}"
+          if [ -z "$pct" ]; then
+            echo "Could not parse coverage percentage; failing closed." >&2
+            exit 1
+          fi
+          # awk for portable float compare; bash doesn't do floats.
+          if awk -v p="$pct" -v f="$COVERAGE_FLOOR" 'BEGIN{exit !(p+0 < f+0)}'; then
+            echo "Coverage ${pct}% is below floor ${COVERAGE_FLOOR}%" >&2
+            exit 1
+          fi
+          echo "Coverage ${pct}% >= floor ${COVERAGE_FLOOR}%"
+
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
