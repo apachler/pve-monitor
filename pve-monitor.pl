@@ -345,7 +345,7 @@ while ( <FILE> ) {
                                  uptime           => undef,
                                  mem_alloc        => 0,
                                  maxmem           => undef,
-                                 cpu_alloc        => undef,
+                                 cpu_alloc        => 0,
                                  maxcpu           => undef,
                              },
                          );
