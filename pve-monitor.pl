@@ -948,6 +948,16 @@ if (defined $arguments{qdisk}) {
 # list all ressources of the cluster
 my $objects = $pve->get('/cluster/resources');
 
+# Guard against an empty / undef response (e.g. a node that returned 200
+# with no body, or a stub PVE that doesn't expose this endpoint). The
+# pre-fix behavior was a hard die at the next dereference. Treat it the
+# same as 'no resources found' so the per-mode reporting blocks fall to
+# their own UNKNOWN paths and the operator gets a useful diagnostic.
+if (!defined $objects || ref($objects) ne 'ARRAY') {
+    debug "Got no/invalid response from /cluster/resources\n";
+    $objects = [];
+}
+
 debug "Found " . scalar(@$objects) . " objects:\n";
 
 # loop the objects to find our pool definitions

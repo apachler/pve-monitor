@@ -1,0 +1,6 @@
+{
+  "/cluster/status": [
+    { "type": "node", "name": "node1", "id": "node/node1", "ip": "127.0.0.1",
+      "local": "1", "qdisk": "0", "estranged": "0", "state": "1" }
+  ]
+}
