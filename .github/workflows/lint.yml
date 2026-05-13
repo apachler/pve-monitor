@@ -1,0 +1,44 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  perlcritic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.38"
+
+      - name: Install Perl::Critic
+        run: cpanm --notest --quiet Perl::Critic
+
+      - name: perlcritic --severity 5 (enforced)
+        # Severity 5 = "you almost certainly have a bug". Currently clean
+        # and gated; a new sev-5 finding fails the workflow.
+        run: perlcritic --severity 5 pve-monitor.pl
+
+      - name: perlcritic --severity 4 (advisory, never fails the workflow)
+        # Severity 4 = "you probably have a bug or violated PBP".
+        # Run for visibility but tolerate findings — many are PBP style
+        # rules the codebase predates (always-unpack-@_, explicit
+        # return, expression-form grep) and a wholesale rewrite is out
+        # of scope for a single CI lint. Findings appear in the step
+        # summary so they're discoverable in PR reviews.
+        run: |
+          out=$(perlcritic --severity 4 --statistics pve-monitor.pl 2>&1 || true)
+          {
+            echo '## perlcritic --severity 4 (advisory)'
+            echo '```'
+            echo "$out"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+          echo "$out"

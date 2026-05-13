@@ -249,13 +249,14 @@ my $br = "\n";
 $br = "<br>" if (defined $arguments{html});
 
 # Read the configuration file
-if (! open FILE, "<", "$arguments{conf}") {
+my $cfg_fh;
+if (! open $cfg_fh, "<", "$arguments{conf}") {
     debug "$!\n";
     print "Cannot load configuration file $arguments{conf} !\n";
     exit $status{UNKNOWN};
 }
 
-while ( <FILE> ) {
+while ( <$cfg_fh> ) {
     my $line = $_;
 
     # Skip commented lines (starting with #)
@@ -286,7 +287,7 @@ while ( <FILE> ) {
 
                  $readingObject = 1;
 
-                 while (<FILE>) {
+                 while (<$cfg_fh>) {
                      my $objLine = $_;
 
                      next if ( $objLine =~ m/^(\s+)?#/ );
@@ -298,7 +299,7 @@ while ( <FILE> ) {
                                  $critCpu = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid CPU declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -310,7 +311,7 @@ while ( <FILE> ) {
                                  $critCpuAlloc = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid CPU_ALLOC declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -322,7 +323,7 @@ while ( <FILE> ) {
                                  $critMem = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid MEM declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -334,7 +335,7 @@ while ( <FILE> ) {
                                  $critDisk = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid DISK declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -346,7 +347,7 @@ while ( <FILE> ) {
                                  $critMemAlloc = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid MEM_ALLOC declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -360,7 +361,7 @@ while ( <FILE> ) {
                                  $nPort = $2;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid PORT declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -382,7 +383,7 @@ while ( <FILE> ) {
                              $nRealm = $2;
                          }
                          else {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid token $token in $name definition !\n";
                              exit $status{UNKNOWN};
                          }
@@ -390,7 +391,7 @@ while ( <FILE> ) {
                      elsif ( $objLine =~ m/\}/i ) {
                          # check object requirements are met, save it, break
                          if (! defined $name ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration !";
                              exit $status{UNKNOWN};
                          }
@@ -451,7 +452,7 @@ while ( <FILE> ) {
 
                  $readingObject = 1;
 
-                 while (<FILE>) {
+                 while (<$cfg_fh>) {
                      my $objLine = $_;
 
                      next if ( $objLine =~ m/^#/i );
@@ -463,7 +464,7 @@ while ( <FILE> ) {
                                  $critDisk = $4;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid DISK declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -473,7 +474,7 @@ while ( <FILE> ) {
                              $node = $2;
                          }
                          else {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid token $token " .
                                    "in $name definition !\n";
                              exit $status{UNKNOWN};
@@ -482,13 +483,13 @@ while ( <FILE> ) {
                      elsif ( $objLine =~ m/\}/i ) {
                          # check object requirements are met, save it, break
                          if (! defined $name ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration !";
                              exit $status{UNKNOWN};
                          }
 
                          if (! defined $node ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration, " . 
                                    "missing node in $name storage definition !\n";
                              exit $status{UNKNOWN};
@@ -523,7 +524,7 @@ while ( <FILE> ) {
 
                  $readingObject = 1;
 
-                 while (<FILE>) {
+                 while (<$cfg_fh>) {
                      my $objLine = $_;
 
                      next if ( $objLine =~ m/^#/i );
@@ -535,7 +536,7 @@ while ( <FILE> ) {
                                  $critCpu = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid CPU declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -547,7 +548,7 @@ while ( <FILE> ) {
                                  $critMem = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid MEM declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -559,14 +560,14 @@ while ( <FILE> ) {
                                  $critDisk = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid DISK declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
                          }
                          else {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid token $token " .
                                    "in $name definition !\n";
                              exit $status{UNKNOWN};
@@ -575,7 +576,7 @@ while ( <FILE> ) {
                      elsif ( $objLine =~ m/\}/i ) {
                          # check object requirements are met, save it, break
                          if (! defined $name ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration !";
                              exit $status{UNKNOWN};
                          }
@@ -618,7 +619,7 @@ while ( <FILE> ) {
 
                  $readingObject = 1;
 
-                 while (<FILE>) {
+                 while (<$cfg_fh>) {
                      my $objLine = $_;
 
                      next if ( $objLine =~ m/^#/i );
@@ -630,7 +631,7 @@ while ( <FILE> ) {
                                  $critCpu = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid CPU declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -642,7 +643,7 @@ while ( <FILE> ) {
                                  $critMem = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid MEM declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -654,14 +655,14 @@ while ( <FILE> ) {
                                  $critDisk = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid DISK declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
                          }
                          else {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid token $token " .
                                    "in $name definition !\n";
                              exit $status{UNKNOWN};
@@ -670,7 +671,7 @@ while ( <FILE> ) {
                      elsif ( $objLine =~ m/\}/i ) {
                          # check object requirements are met, save it, break
                          if (! defined $name ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration !\n";
                              exit $status{UNKNOWN};
                          }
@@ -714,7 +715,7 @@ while ( <FILE> ) {
 
                  $readingObject = 1;
 
-                 while (<FILE>) {
+                 while (<$cfg_fh>) {
                      my $objLine = $_;
 
                      next if ( $objLine =~ m/^#/i );
@@ -726,7 +727,7 @@ while ( <FILE> ) {
                                  $critCpu = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid CPU declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -738,7 +739,7 @@ while ( <FILE> ) {
                                  $critMem = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid MEM declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
@@ -750,14 +751,14 @@ while ( <FILE> ) {
                                  $critDisk = $3;
                              }
                              else {
-                                 close(FILE);
+                                 close($cfg_fh);
                                  print "Invalid DISK declaration " .
                                        "in $name definition\n";
                                  exit $status{UNKNOWN};
                              }
                          }
                          else {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid token $token " .
                                    "in $name definition !\n";
                              exit $status{UNKNOWN};
@@ -766,7 +767,7 @@ while ( <FILE> ) {
                      elsif ( $objLine =~ m/\}/i ) {
                          # check object requirements are met, save it, break
                          if (! defined $name ) {
-                             close(FILE);
+                             close($cfg_fh);
                              print "Invalid configuration !\n";
                              exit $status{UNKNOWN};
                          }
@@ -790,7 +791,7 @@ while ( <FILE> ) {
                  }
              }
          else {
-             close(FILE);
+             close($cfg_fh);
              print "Invalid token $blockType " .
                    "in configuration file $arguments{conf} !\n";
              exit $status{UNKNOWN};
@@ -798,7 +799,7 @@ while ( <FILE> ) {
     }
 }
 
-close(FILE);
+close($cfg_fh);
 
 if ( $readingObject ) {
     print "Invalid configuration ! (Probably missing '}' ) \n";
