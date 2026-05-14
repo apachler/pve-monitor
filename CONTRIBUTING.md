@@ -25,8 +25,9 @@ Thanks for considering a contribution. This document is short on purpose — it'
 
 ```sh
 # One-time, on a fresh machine
-sudo apt-get install -y libjson-perl libio-socket-ssl-perl libwww-perl cpanminus libdevel-cover-perl
-cpanm Net::Proxmox::VE
+sudo apt-get install -y libjson-perl libio-socket-ssl-perl libwww-perl cpanminus
+# Pull runtime + dev (Devel::Cover) deps from cpanfile in one shot:
+cpanm --installdeps --with-develop --notest .
 
 # The tests themselves
 prove -r t/

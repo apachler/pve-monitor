@@ -32,11 +32,10 @@ jobs:
           perl-version: "5"
 
       - name: Install latest dependencies (no version pin)
-        run: |
-          cpanm --notest --quiet \
-            IO::Socket::SSL \
-            JSON \
-            Net::Proxmox::VE
+        # The cpanfile lists deps; --installdeps walks them. The canary
+        # purpose is to track upstream so we deliberately don't pass
+        # a version-pin flag here.
+        run: cpanm --installdeps --notest --quiet .
 
       - name: Print resolved versions
         run: |

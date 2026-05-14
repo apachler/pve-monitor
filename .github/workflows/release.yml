@@ -34,11 +34,21 @@ jobs:
           perl-version: "5.38"
 
       - name: Install CPAN dependencies
+        run: cpanm --installdeps --notest --quiet .
+
+      - name: Verify tag is SemVer
+        # Refuses obviously malformed tags (v1.2a, v1.2-test, vfoo)
+        # before the rest of the workflow does anything expensive.
+        # Accepts MAJOR.MINOR[.PATCH][-PRERELEASE] -- the project's
+        # historical 1.1 / 1.2 two-segment versions stay valid; future
+        # 1.2.3 and 1.2.3-rc1 also pass.
         run: |
-          cpanm --notest --quiet \
-            IO::Socket::SSL \
-            JSON \
-            Net::Proxmox::VE
+          tag_ver="${GITHUB_REF_NAME#v}"
+          if ! echo "$tag_ver" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?(-[0-9A-Za-z.-]+)?$'; then
+            echo "Refusing to release: tag '$GITHUB_REF_NAME' is not a SemVer version" >&2
+            echo "Expected v<MAJOR>.<MINOR>[.<PATCH>][-<PRERELEASE>], got '$tag_ver'" >&2
+            exit 1
+          fi
 
       - name: Verify tag matches $pluginVersion
         run: |

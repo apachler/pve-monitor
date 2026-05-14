@@ -37,11 +37,9 @@ jobs:
           perl-version: ${{ matrix.perl }}
 
       - name: Install CPAN dependencies
-        run: |
-          cpanm --notest --quiet \
-            IO::Socket::SSL \
-            JSON \
-            Net::Proxmox::VE
+        # Pulls runtime deps from ./cpanfile so this list stays in
+        # one place across test/coverage/release/canary workflows.
+        run: cpanm --installdeps --notest --quiet .
 
       - name: Syntax + --version smoke (make test)
         run: make test

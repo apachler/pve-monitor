@@ -57,21 +57,9 @@ Sections are roughly priority-ordered.
 - **Notes**: Multi-stage build — stage 1 installs CPAN deps under `local::lib`; stage 2 is `perl:5.38-slim` + the script + the prebuilt `local::lib`. Add a `.github/workflows/container.yml` that builds on tag, publishes to GHCR, and runs Trivy + Grype against the image. Skip on every-PR builds (slow).
 - **Open question**: do we ship `--ceph` / `--subscriptions` features that need additional deps in the container, or does the runtime cpanfile match the host? Document explicitly.
 
-### `cpanfile` for ergonomic install
-- **Priority**: P3
-- **Effort**: S
-- **Impact**: `cpanm --installdeps .` replaces the README incantation listing each module. Useful for the container build, less useful for the typical "drop pve-monitor.pl into PluginDir" install.
-- **Notes**: Don't remove the README's `cpanm Net::Proxmox::VE` example — that path still works.
-
 ---
 
 ## Release automation
-
-### Semantic versioning enforcement on tags
-- **Priority**: P2
-- **Effort**: S
-- **Impact**: Release workflow today verifies tag == `$pluginVersion` but doesn't check that the tag looks like a real SemVer string. Add a regex guard so `v1.2a` or `v1.2-test` can't accidentally publish.
-- **Notes**: `^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?(-[0-9A-Za-z.-]+)?$`. `release-please` is overkill for a project with one human releasing once or twice a year.
 
 ### Sign release artifacts with Sigstore / cosign
 - **Priority**: P3

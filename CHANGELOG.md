@@ -72,6 +72,8 @@ The next release will be the first cut on this branch since the upstream 1.1 tag
 - New `gitleaks` workflow scans every push and PR for accidentally committed secrets (PVE API tokens are the obvious risk).
 - New `actionlint` workflow lints every file under `.github/workflows/` on change, catching expression-syntax and shellcheck issues before they ship.
 - New `scorecard` workflow runs OpenSSF Scorecard weekly, uploads SARIF to the Security tab, and powers the badge on README.
+- `cpanfile` is now the single source of truth for runtime CPAN dependencies. The four workflows (`test`, `coverage`, `release`, `canary`) install via `cpanm --installdeps .` rather than enumerating modules inline; new deps go in one place. `Devel::Cover` lives in the `develop` requires bucket so the production install path doesn't pull it.
+- `release` workflow now refuses non-SemVer tags before doing anything expensive. `v1.2a`, `vfoo`, and `v1.2-test` fail the gate; `v1.2`, `v1.2.3`, and `v1.2.3-rc1` pass. Complements the existing tag-vs-`$pluginVersion` check.
 
 ## [1.1] - earlier
 

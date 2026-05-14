@@ -25,12 +25,9 @@ jobs:
           perl-version: "5.38"
 
       - name: Install dependencies (runtime + Devel::Cover)
-        run: |
-          cpanm --notest --quiet \
-            IO::Socket::SSL \
-            JSON \
-            Net::Proxmox::VE \
-            Devel::Cover
+        # --with-develop pulls in `on 'develop' => sub { ... }` from
+        # cpanfile, which is where Devel::Cover lives.
+        run: cpanm --installdeps --with-develop --notest --quiet .
 
       - name: Run prove under Devel::Cover
         run: |
