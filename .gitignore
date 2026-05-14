@@ -1,3 +1,25 @@
+# Coverage + release artifacts
 cover_db/
 *.tar.gz
 *.tar.gz.sha256
+
+# Generated manpage (built by .github/workflows/release.yml)
+*.1
+
+# Editor / IDE
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.bak
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Perl module-build leftovers (in case anyone runs cpanm in-tree)
+/Build
+/_build/
+/blib/
+MYMETA.*

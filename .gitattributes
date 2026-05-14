@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.pl  text eol=lf
+*.pm  text eol=lf
+*.t   text eol=lf
+*.sh  text eol=lf
+Makefile text eol=lf
+
+*.png binary
+*.jpg binary
+*.gz  binary
+*.tar binary
+
+# Keep example configs LF — the Icinga2 host parses them
+*.conf text eol=lf
+*.json text eol=lf
+
+# Suppress diffs / language stats noise on vendored / mock files
+t/lib/Net/Proxmox/VE.pm linguist-vendored
+t/data/** linguist-detectable=false
