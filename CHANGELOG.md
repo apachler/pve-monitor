@@ -31,6 +31,10 @@ The next release will be the first cut on this branch since the upstream 1.1 tag
 - Node probe order is randomized — a dead head-of-config node no longer makes every check pay the full `--timeout` cost.
 - `use warnings` is enabled.
 
+### Security
+
+- **`--json` output no longer includes `monitor_password`, `monitor_token_id`, or `monitor_token_secret`.** The per-node hashref carries credential fields throughout the script's resource-collection pipeline; the JSON serializer was serializing the entire hashref, so any monitoring host that consumed the `--json` output (typical: Icinga2 → IDO database → web UI) would persist the cleartext secret in its database. The fix strips those three keys when building the payload. New regression test `t/13-debug-redaction.t` runs `--debug --json` (and the connection-failure path) against a canary fixture and asserts the literal secret value never appears in stdout or stderr.
+
 ### Fixed
 
 - Node-CPU CRITICAL branch was writing to the threshold field (`crit_cpu`) instead of the status field (`cpu_status`), so a node exceeding the critical CPU threshold never raised its status.

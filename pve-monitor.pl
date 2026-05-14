@@ -1615,7 +1615,18 @@ if ($arguments{json}) {
         plugin      => 'pve-monitor',
         version     => $pluginVersion,
     );
-    $payload{nodes}      = \@monitoredNodes    if defined $arguments{nodes};
+    # Strip credentials before serializing the per-node array. password /
+    # token_id / token_secret are config-side inputs the script never
+    # needs to emit, and the JSON payload typically lands in the Icinga2
+    # stdout stream (and from there in the IDO database / web UI), so
+    # leaking them is the canonical foot-gun. t/13-debug-redaction.t
+    # regression-guards this.
+    my @nodes_safe = map {
+        my %copy = %$_;
+        delete @copy{qw(password token_id token_secret)};
+        \%copy;
+    } @monitoredNodes;
+    $payload{nodes}      = \@nodes_safe        if defined $arguments{nodes};
     $payload{storages}   = \@monitoredStorages if defined $arguments{storages};
     $payload{containers} = \@monitoredOpenvz   if defined $arguments{openvz};
     $payload{qemu}       = \@monitoredQemus    if defined $arguments{qemu};

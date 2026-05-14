@@ -139,12 +139,6 @@ Sections are roughly priority-ordered.
 
 ## Security
 
-### `monitor_token_secret` redaction in `--debug` output
-- **Priority**: P1
-- **Effort**: S
-- **Impact**: `--debug` currently doesn't print credentials, but a future contributor adding "log the connection params for troubleshooting" could leak the secret into the Icinga2 stdout. Add an explicit redaction helper and a test that runs `--debug --json` against `t/data/full.conf` and grep-asserts the token doesn't appear in either stream.
-- **Notes**: Cheap insurance against a foot-gun. Pair with a `gitleaks` rule for the exact `monitor_token_secret` keyword.
-
 ### Drop `IO::Socket::SSL` default insecure mode footgun
 - **Priority**: P2
 - **Effort**: M
