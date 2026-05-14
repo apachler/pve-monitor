@@ -4,6 +4,16 @@ on:
   push:
   pull_request:
 
+# Least-privilege: this workflow never needs to write back to the repo.
+permissions:
+  contents: read
+
+# Cancel in-progress runs on the same branch / PR when a new push lands.
+# Master pushes stay un-cancelled so release-adjacent runs always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 jobs:
   smoke:
     name: perl ${{ matrix.perl }}
