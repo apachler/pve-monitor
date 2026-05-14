@@ -1,0 +1,34 @@
+name: gitleaks
+
+# Secret scanning on every push and PR. The plugin handles PVE API
+# tokens (`monitor_token_secret`) and the example configs ship with
+# placeholder values; gitleaks catches the case where a real token
+# gets pasted into a fixture, a debug dump, or a commit message.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the scan covers more than just the tip commit.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is only needed for org-wide scans; the
+          # action runs free against a single public repo.

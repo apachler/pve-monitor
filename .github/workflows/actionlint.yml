@@ -1,0 +1,38 @@
+name: actionlint
+
+# Lints every workflow file under .github/workflows/. Catches typos,
+# bad expression syntax, unknown context references, and shellcheck
+# findings inside `run:` blocks — class of bugs that otherwise only
+# surface the next time the workflow runs in anger.
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run actionlint
+        # The upstream-published one-shot installer; pinned by tag.
+        # The script downloads the latest actionlint release into the
+        # workspace and prints findings in GitHub-annotation format.
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
