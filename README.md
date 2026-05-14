@@ -2,6 +2,7 @@
 
 [![test](https://github.com/apachler/pve-monitor/actions/workflows/test.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/test.yml)
 [![coverage](https://github.com/apachler/pve-monitor/actions/workflows/coverage.yml/badge.svg)](https://github.com/apachler/pve-monitor/actions/workflows/coverage.yml)
+[![scorecard](https://api.securityscorecards.dev/projects/github.com/apachler/pve-monitor/badge)](https://securityscorecards.dev/viewer/?uri=github.com/apachler/pve-monitor)
 [![release](https://img.shields.io/github/v/release/apachler/pve-monitor?display_name=tag&sort=semver)](https://github.com/apachler/pve-monitor/releases/latest)
 [![license](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![perl](https://img.shields.io/badge/perl-5.14%2B-blue.svg)](#requirements)
@@ -207,6 +208,13 @@ git push origin v1.2
 ```
 
 The artifact for the most recent release is linked from the [release badge](https://github.com/apachler/pve-monitor/releases/latest) at the top of this README.
+
+## Community
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — branching, commit style, how to run the test suite.
+- [`SUPPORT.md`](SUPPORT.md) — where to ask questions, where to file bugs vs. security reports.
+- [`SECURITY.md`](SECURITY.md) — private vulnerability reporting.
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
 
 ## License
 

@@ -1,0 +1,8 @@
+# Default reviewer for everything. GitHub auto-requests review from this
+# user/team on every PR. Path-specific overrides go below.
+*                       @apachler
+
+# CI / supply-chain config: a typo or a stray permission here can take
+# the whole release path down, so route those through the same owner
+# even if /CODEOWNERS itself ever grows additional reviewers.
+/.github/                @apachler
