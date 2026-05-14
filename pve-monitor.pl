@@ -6,8 +6,8 @@
 #
 #####################################################
 #
-#   Requires Net::Proxmox::VE librairy:
-#     git://github.com/dpiquet/proxmox-ve-api-perl.git
+#   Requires Net::Proxmox::VE from CPAN
+#     https://metacpan.org/pod/Net::Proxmox::VE
 #
 # License Information:
 # This program is free software; you can redistribute it and/or modify
