@@ -51,6 +51,23 @@ The next release will be the first cut on this branch since the upstream 1.1 tag
 - `CLAUDE.md` refreshed for the post-refactor architecture and the helpers added in this cycle (`max_status`, `evaluate_threshold`, `debug`).
 - `SECURITY.md` documents the private vulnerability-report path.
 - `CONTRIBUTING.md` covers branch/PR conventions and how to run the test suite.
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
+- `SUPPORT.md` indexes the supported help channels.
+
+### Repository hygiene
+
+- `.editorconfig` and `.gitattributes` enforce LF line endings, UTF-8, and per-language indent so contributions from Windows hosts no longer round-trip with mixed line endings.
+- `.github/CODEOWNERS` routes review requests automatically.
+- `.gitignore` expanded to cover editor, OS, and Perl-module-build artifacts.
+- Stale comment removed from `pve-monitor.pl` header that pointed at the long-defunct `git://` mirror of `Net::Proxmox::VE`.
+
+### CI / supply chain
+
+- Least-privilege `permissions:` block on every workflow that lacked one.
+- `concurrency:` group on `test`, `coverage`, `lint` cancels superseded PR runs to save CI minutes.
+- New `gitleaks` workflow scans every push and PR for accidentally committed secrets (PVE API tokens are the obvious risk).
+- New `actionlint` workflow lints every file under `.github/workflows/` on change, catching expression-syntax and shellcheck issues before they ship.
+- New `scorecard` workflow runs OpenSSF Scorecard weekly, uploads SARIF to the Security tab, and powers the badge on README.
 
 ## [1.1] - earlier
 
