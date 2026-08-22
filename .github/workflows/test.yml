@@ -56,7 +56,7 @@ jobs:
             echo "--help exited with $rc (expected 0 or 3)"; exit 1
           fi
 
-      - name: Parser regression: --dry-run against example config
+      - name: "Parser regression: --dry-run against example config"
         # The example config covers every block type the parser knows
         # (node, storage, container, qemu, pool), so a passing --dry-run
         # rules out the entire class of "parser broke on block X" bugs
