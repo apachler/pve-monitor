@@ -93,9 +93,11 @@ jobs:
           tar -czf "${name}.tar.gz" -C "$(dirname "$stage")" "$name"
           sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256"
           ls -l "${name}.tar.gz" "${name}.tar.gz.sha256"
-          echo "tarball=${name}.tar.gz" >>"$GITHUB_OUTPUT"
-          echo "sha256=${name}.tar.gz.sha256" >>"$GITHUB_OUTPUT"
-          echo "version=${ver}" >>"$GITHUB_OUTPUT"
+          {
+            echo "tarball=${name}.tar.gz"
+            echo "sha256=${name}.tar.gz.sha256"
+            echo "version=${ver}"
+          } >>"$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
